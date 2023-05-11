@@ -1,166 +1,273 @@
-<div style="text-align:center;">
-[f:id:motikan2010:20230408202451p:plain:w600]
-</div>
+<div style="text-align:center;">[f:id:motikan2010:20230104081346p:plain]</div>
 
 <div class="contents-box"><p>[:contents]</p></div>
 
 ## はじめに
 
-　国内のWordPressで構築されている 約26万サイトを対象に調査しました。(※ 厳密には 260,135 サイト分)
+　新年あけましておめでとうございます！
 
-　今回は第二弾は「脆弱なプラグイン 編」ということで、WordPressに導入されている既知の脆弱性があるプラグインに着目して調査を行いました。
+　新年一発目の記事ということで、年に一度の人気脆弱性の紹介となります。
 
-　前回の記事は以下のものです。
-[https://blog.motikan2010.com/entry/2023/02/20/26%E4%B8%87%E3%82%B5%E3%82%A4%E3%83%88%E5%88%86%E3%81%AEWordPress%E3%82%92%E3%82%BB%E3%82%AD%E3%83%A5%E3%83%AA%E3%83%86%E3%82%A3%E8%AA%BF%E6%9F%BB%E3%80%8C%E3%83%87%E3%83%95%E3%82%A9%E3%83%AB%E3%83%88:embed:cite]
+### 過去の人気脆弱性
 
+　参考までに 2020年 と 2021年 の人気脆弱性を記載しておきます。
 
-### 調査内容
+**▼ 2020年**
 
-　調査対象としたプラグインは、私が運用しているハニーポットに対してプラグインの有無を確認するスキャンの多さ上位のものを対象にしています。  
+　2020年は、SMBv3 に対して認証無しでRCE可能な脆弱性 CVE-2020-11651 が1位でした。
 
-　そして調査対象の脆弱性は、当プラグインで特に目立つ脆弱性の有無を確認しています。  
+|  | スコア | CVE ID | リポ数 | スター合計 |
+| -: | -: | - | -: | -: |
+|  1位 | 3,696 | CVE-2020-11651 / Microsoft SMBv3 | 69 | 3,006 |
+|  2位 | 3,451 | CVE-2020-0787 / Oracle WebLogic Server | 23 | 3,221 |
+|  3位 | 3,149 | CVE-2020-1938 / Netlogon | 45 | 2,699 |
+|  4位 | 1,709 | CVE-2020-0688 / Microsoft Windows CryptoAPI | 32 | 1,389 |
+|  5位 | 1,520 | CVE-2020-5902 / Oracle WebLogic Server |  8 | 1,440 |
+|  6位 | 1,185 | CVE-2020-2551 / BIG-IP 製品 | 51 | 675 |
+|  7位 | 1,076 |  CVE-2020-0601 / Microsoft Exchange Server | 17 | 906 |
+|  8位 | 1,026 | CVE-2020-1472 / Apache Tomcat | 23 | 796 |
+|  9位 |  508 | CVE-2020-14882<br/> / Windows Background Intelligent Transfer Service |  3 | 478 |
+| 10位 |  495 | CVE-2020-0796 / SaltStack Salt | 12 | 375 |
 
-　具体的には以下4種類のプラグインと脆弱性が調査対象です。
+**▼ 2021年**
 
-| プラグイン | 脆弱性 |
-|-|-|
-| File Manager | Arbitrary File Upload/Remote Code Execution (CVE-2020-25213) |
-| InfiniteWP Client | Authentication Bypass (CVE-2020-8772) |
-| bbPress | Unauthenticated Privilege Escalation (CVE-2020-13693) |
-| Fancy Product Designer | Unauthenticated Arbitrary File Upload (CVE-2021-24370) |
+　2021年は、最悪と評価された脆弱性である Log4Shell (Log4jの脆弱性) が1位でした。
 
-　**最終的には 260,135サイト中の「プラグイン導入数」と「脆弱性有りプラグイン導入数」を出力しています。**
+|| スコア | 公表日 | CVE ID | リポ数 | スター合計 |
+| -: | -: | - | - | -: | -: |
+| 1位 | 15,134 | 2021/12/10 | CVE-2021-44228 / Apache Log4j | 345 | 11,684 |
+| 2位 | 2,847 | 2021/01/26 | CVE-2021-3156 / sudo | 52 | 2,327 |
+| 3位 |  2,696 | 2021/09/15 | CVE-2021-40444 / Microsoft MSHTML |  35 |  2,346 |
+| 4位 | 2,034 | 2021/06/08 | CVE-2021-1675 / Windows 印刷スプーラー | 11 | 1,924 |
+| 5位 | 1,667 | 2021/03/02 | CVE-2021-26855 / Microsoft Exchange Server | 41 | 1,257 |
+| 6位 | 1,557 | 2021/10/05 | CVE-2021-41773 / Apache HTTP Server | 76 | 797 |
+| 7位 | 1,149 | 2021/02/24 | CVE-2021-21972 / VMware vCenter Server | 26 | 889 |
+| 8位 | 1,068 | 2021/11/09 | CVE-2021-42278 / Microsoft Windows Server | 5 | 1,018 |
+| 9位 | 1,005 | 2021/01/29 | CVE-2021-25646 / Apache Druid | 7 | 935 |
+| 10位 | 975 | 2021/11/09 | CVE-2021-42287 / Microsoft Windows Server | 1 | 965 |
 
-## 調査結果
+## 2022年 人気脆弱性 TOP 10 in GitHub
 
-### File Manager <= 6.8 - Arbitrary File Upload/Remote Code Execution (CVE-2020-25213)
+　では、2022年の人気脆弱性を紹介していきます。
 
-|| サイト数 |
-|-|-:|
-| プラグイン導入数 | 2,688 |
-| 脆弱性有りプラグイン導入数 | 11 |
+### 10位 - 753 pt 『macOS における権限昇格される脆弱性 (CVE-2022-46689)』
 
-<figure class="figure-image figure-image-fotolife" title="File Manager &lt;= 6.8 - Arbitrary File Upload/Remote Code Execution - Wordfence">[f:id:motikan2010:20230408153445p:plain:w600]<figcaption>File Manager &lt;= 6.8 - Arbitrary File Upload/Remote Code Execution - Wordfence</figcaption></figure>
+[f:id:motikan2010:20230105001607j:plain]
 
-#### プラグインのバージョン
+リポジトリ数: 3 / スター数: 723
 
-[f:id:motikan2010:20230408151737p:plain:w600]
+> App がカーネル権限で任意のコードを実行できる可能性があります。  
+「MacDirtyCow」と呼称されています。
 
-| 導入数 | バージョン | 脆弱 | | 導入数 | バージョン | 脆弱 | | 導入数 | バージョン | 脆弱 |
-|-:|-|:-:|-|-:|-|:-:|-:|-:|-|:-:|
-| 413 | 7.1.6 |  | | 14 | 5.4 |  | | 1 | 6.7 | ○ |
-| 405 | 7.1.8 |  | | 13 | 1.9 |  | | 1 | 6.2 | ○ |
-| 369 | 7.1.7 |  | | 12 | 7 |  | | 1 | 4 |  |
-| 273 | 7.1.2 |  | | 12 | 4.1 |  | | 1 | 3.4 |  |
-| 181 | 7.1.1 |  | | 12 | 3.2 |  | | 1 | 2.9 |  |
-| 176 | 7.1.5 |  | | 12 | 2.8 |  | | 1 | 2.7 |  |
-| 173 | 不明 |  | | 10 | 1.7 |  | | 1 | 2.2 |  |
-| 149 | 7.1.4 |  | | 9 | 1.8 |  | | 1 | 1.1 |  |
-| 54 | 7.1 |  | | 8 | 3.1 |  | | 1 | 1 |  |
-| 48 | 6.9 |  | | 7 | 3.8 |  | |  |  |  |
-| 42 | 7.1.3 |  | | 7 | 2.4 |  | |  |  |  |
-| 41 | 5.3 |  | | 7 | 1.6 |  | |  |  |  |
-| 38 | 5.7 |  | | 6 | 3.7 |  | |  |  |  |
-| 29 | 4.4 |  | | 5 | 6.4 | ○ | |  |  |  |
-| 28 | 5.2 |  | | 4 | 6.5 | ○ | |  |  |  |
-| 26 | 5.9 |  | | 4 | 3 |  | |  |  |  |
-| 26 | 4.8 |  | | 4 | 2 |  | |  |  |  |
-| 24 | 5.5 |  | | 4 | 1.5 |  | |  |  |  |
-| 15 | 4.6 |  | | 3 | 2.1 |  | |  |  |  |
-| 14 | 5.8 |  | | 2 | 2.6 |  | |  |  |  |
+　様々な機器に利用されている macOS の脆弱性であるためランクインしたと思われます。
 
-#### 脆弱性の割合
+PoC：<span><a href="https://github.com/ginsudev/WDBFontOverwrite" target="_blank">ginsudev / WDBFontOverwrite</a></span>
 
-[f:id:motikan2010:20230408151944p:plain:w600]
+参考
 
-### InfiniteWP Client <= 1.9.4.4 - Authentication Bypass (CVE-2020-8772)
+- [https://support.apple.com/ja-jp/HT213534:title]
+- [https://worthdoingbadly.com/macdirtycow/:title]
+- [https://tools4hack.santalab.me/release-cve-2022-46689-macdirtycow-exploit-and-poc-trolllock-reborn-for-ios.html:title]
 
-|| サイト数 |
-|-|-:|
-| プラグイン導入数 | 233 |
-| 脆弱性有りプラグイン導入数 | 8 |
+### 9位 - 766 pt 『Cobalt Strike におけるクロスサイトスクリプティングの脆弱性 (CVE-2022-39197)』
 
-<figure class="figure-image figure-image-fotolife" title="InfiniteWP Client <= 1.9.4.4 - Authentication Bypass - Wordfence">[f:id:motikan2010:20230408154806p:plain:w600]<figcaption>InfiniteWP Client &lt;= 1.9.4.4 - Authentication Bypass - Wordfence</figcaption></figure>
+[f:id:motikan2010:20230105001129j:plain]
 
-#### プラグインのバージョン
+リポジトリ数: 13 / スター数: 636
 
-[f:id:motikan2010:20230408154149p:plain:w600]
+> HelpSystems 社の Cobalt Strike 4.7 までのバージョンに XSS (Cross Site Scripting) の脆弱性があり、リモートの攻撃者が Cobalt Strike teamserver上で HTML を実行できる可能性がありました。  
+この脆弱性が RCE につながる可能性があると記載されています。
 
-| 導入数 | バージョン | 脆弱 |
-|-|-|-|
-| 115 | 1.9.6 |  |
-| 63 | 1.11.0 |  |
-| 29 | 1.9.4.8.2 |  |
-| 7 | 1.9.8 |  |
-| 5 | 1.9.4.5 |  |
-| 4 | 1.8.5 | ○ |
-| 3 | 1.9.9 |  |
-| 2 | 1.9.4.11 |  |
-| 2 | 1.6.4.2 | ○ |
-| 1 | 1.6.6.3 | ○ |
-| 1 | 1.6.3.2 | ○ |
-| 1 | 不明 |  |
+　XSSの脆弱性ですが RCE に繋げることができる(RCE via XSS) ためランクインしたと思われます。
 
-### 脆弱性の割合
+PoC: <span><a href="https://github.com/its-arun/CVE-2022-39197" target="_blank">its-arun / CVE-2022-39197</a></span>
 
-[f:id:motikan2010:20230408154313p:plain:w600]
+参考
 
-### bbPress <= 2.6.4 - Unauthenticated Privilege Escalation (CVE-2020-13693)
+[https://mp.weixin.qq.com/s/Eb0pQ-1ebLSKPUFC7zS6dg:embed:cite]
 
-|| サイト数 |
-|-|-:|
-| プラグイン導入数 | 29 |
-| 脆弱性有りプラグイン導入数 | 8 |
+- [https://securityintelligence.com/posts/analysis-rce-vulnerability-cobalt-strike/:title]
 
-<figure class="figure-image figure-image-fotolife" title="bbPress <= 2.6.4 - Unauthenticated Privilege Escalation - Wordfence">[f:id:motikan2010:20230408154632p:plain:w600]<figcaption>bbPress &lt;= 2.6.4 - Unauthenticated Privilege Escalation - Wordfence</figcaption></figure>
+### 8位 - 821 pt 『OpenSSL におけるバッファオーバーフローの脆弱性 (CVE-2022-3602)』
 
-#### プラグインのバージョン
+[f:id:motikan2010:20230105001115p:plain]
 
-[f:id:motikan2010:20230408155045p:plain:w600]
+リポジトリ数: 8 / スター数: 741
 
-| 導入数 | バージョン | 脆弱 |
-|-|-|-|
-| 13 | 2.6.9 |  |
-| 5 | 2.6.6 |  |
-| 3 | 2.6.5 |  |
-| 1 | 2.6.4 | ○ |
-| 1 | 2.6.3 | ○ |
-| 2 | 2.5.14 | ○ |
-| 2 | 2.5.12 | ○ |
-| 1 | 2.5.11 | ○ |
-| 1 | 2.5.8 | ○ |
+> OpenSSLには、X.509証明書の検証処理を通じてバッファオーバーフローが発生する脆弱性があります。
+脆弱性が悪用された場合、攻撃者が用意した悪意のある証明書により、4バイト（CVE-2022-3602）あるいは任意のバイト数（CVE-2022-3786）のオーバーフローを発生させられる可能性があります。
+結果として、サービス運用妨害（DoS）状態にされたり（CVE-2022-3602, CVE-2022-3786）、遠隔からのコード実行が行われたりする可能性があります（CVE-2022-3602）。
 
-#### 脆弱性の割合
+　脆弱性公開前まで『OpenSSLで史上2度目の「致命的」レベルの脆弱性』という評価から多くの人が警戒していた脆弱性です。そのため詳細の公表前後問わず注目されていました。  
 
-[f:id:motikan2010:20230408155255p:plain:w600]
+　公開されてると重大度が下がっていたりとガッカリした人は多いのではないでしょうか。
 
-### Fancy Product Designer <= 4.6.8 - Unauthenticated Arbitrary File Upload (CVE-2021-24370)
+[https://gigazine.net/news/20221101-openssl-critical-vulnerability-fix/:embed:cite]
 
-|| サイト数 |
-|-|-:|
-| プラグイン導入数 | 5 |
-| 脆弱性有りプラグイン導入数 | ? |
+PoC: <span><a href="https://github.com/NCSC-NL/OpenSSL-2022" target="_blank">NCSC-NL / OpenSSL-2022</a></span>
 
-#### プラグインのバージョン
+参考
 
-<figure class="figure-image figure-image-fotolife" title="Fancy Product Designer <= 4.6.8 - Unauthenticated Arbitrary File Upload - Wordfence">[f:id:motikan2010:20230408160435p:plain:w600]<figcaption>Fancy Product Designer &lt;= 4.6.8 - Unauthenticated Arbitrary File Upload - Wordfence</figcaption></figure>
+- [https://www.jpcert.or.jp/at/2022/at220030.html:title]
 
-| 導入数 | バージョン | 脆弱 |
-|-|:-|-|
-| 5 | 不明 |  |
+[https://twitter.com/futurevuls/status/1587518546866601985:embed]
+
+### 7位 - 1,289 pt 『Spring Cloud Gateway における未認証の任意のコード実行の脆弱性 (CVE-2022-22947)』
+
+[f:id:motikan2010:20230105001021p:plain]
+
+リポジトリ数: 55 スター数: 739
+
+> GatewayActuator エンドポイントが有効化され、公開され、安全でない場合、アプリケーションはコードインジェクション攻撃に対して脆弱です。
+リモートの攻撃者が悪意をもって細工されたリクエストを作成し、リモートホストで任意のリモート実行を行う可能性があります。
+
+　Java界では有名なSpringプロジェクトが提供しているAPI構築基盤である Spring Cloud Gateway の脆弱性でした。
+
+PoC: <span><a href="https://github.com/lucksec/Spring-Cloud-Gateway-CVE-2022-22947" target="_blank">lucksec / Spring-Cloud-Gateway-CVE-2022-22947</a></span>
+
+参考
+
+- [https://jp.tenable.com/plugins/nessus/163631:title]
+
+### 6位 - 1,475 pt 『BIG-IP 製品の iControlREST コンポーネントにおける未認証の任意のコード実行の脆弱性 (CVE-2022-1388)』
+
+リポジトリ数: 61 / スター数: 865
+
+> F5社 の BIG-IP 製品の iControl REST API 機能にリモートコード実行の脆弱性があります。
+認証されていないリモートの攻撃者はこれを悪用して、認証をバイパスし、ルート権限で任意のコードを実行する可能性があります。
+
+　有名なネットワーク機器ブランドである BIG-IP の脆弱性であるためランクインしたと考えられます。  
+
+PoC: <span><a href="https://github.com/horizon3ai/CVE-2022-1388" target="_blank">horizon3ai / CVE-2022-1388</a></span>
+
+参考
+
+- [https://blogs.jpcert.or.jp/ja/2022/09/bigip-exploit.html:title]
+- [https://jp.tenable.com/plugins/nessus/160726:title]
+
+### 5位 - 1,479 pt 『VMware Workspace ONE Access、VMware Identity Manager における未認証の任意のコード実行の脆弱性 (CVE-2022-22954)』
+
+リポジトリ数: 26 スター数: 1,219
+
+> VMware Workspace ONE Access、VMware Identity Manager におけるサーバーサイド テンプレート インジェクションに起因するリモートコード実行(RCE)の脆弱性(CVE-2022-22954)は、エクスプロイトが非常に容易(trivial)で、脆弱なデバイスにHTTPリクエストを1つ送るだけで悪用可能です。
+
+　実際のサイバー攻撃に利用された脆弱性であるためランクインしたと考えられます。  
+[https://www.security-next.com/136609:embed:cite]
+
+PoC: <span><a href="https://github.com/Schira4396/VcenterKiller" target="_blank">Schira4396 / VcenterKiller</a></span>
+
+参考
+
+- [https://unit42.paloaltonetworks.jp/cve-2022-22954-vmware-vulnerabilities/:title]
+
+### 4位 - 1,683 pt 『マイクロソフトサポート診断ツールに任意のコード実行の脆弱性 (CVE-2022-30190)』
+
+[f:id:motikan2010:20230105001101j:plain]
+
+リポジトリ数: 11 / スター数: 1,924
+
+> Word などの呼び出し元アプリケーションから URL プロトコルを使用して MSDT が呼び出されると、リモートでコードが実行される脆弱性が存在します。
+攻撃者がこの脆弱性を悪用した場合、呼び出し元のアプリケーションの権限で任意のコードが実行される可能性があります。
+
+　一般的によく利用されるツールである Microsoft Word が標的となる脆弱性であるためランクインしたと考えられます。
+
+PoC: <span><a href="https://github.com/komomon/CVE-2022-30190-follina-Office-MSDT-Fixed" target="_blank">komomon / CVE-2022-30190-follina-Office-MSDT-Fixed</a></span>
+
+参考
+
+- [https://msrc-blog.microsoft.com/2022/05/30/guidance-for-cve-2022-30190-microsoft-support-diagnostic-tool-vulnerability-jp/:title]
+- [https://jpn.nec.com/cybersecurity/blog/220620/index.html:title]
+
+### 3位 - 2,131 pt 『Confluence Server、Data Center における未認証の任意のコード実行の脆弱性 (CVE-2022-26134)』
+
+[f:id:motikan2010:20230105001038p:plain]
+
+リポジトリ数: 62 / スター数: 1,511
+
+> Atlassian では、Confluence Data Center と Server における、重大な深刻度を持つ未認証のリモートコード実行の脆弱性を把握しています。
+認証されていないユーザーが、Confluence Server または Data Center インスタンスで任意のコードを実行できる、OGNL インジェクションの脆弱性が存在します。 
+
+　インターネット上に公開されていることが多いかつシェアも大きいソフトウェアの脆弱性であるためランクインしたと考えられます。
+
+PoC: <span><a href="https://github.com/W01fh4cker/Serein" target="_blank">W01fh4cker / Serein</a></span>
+
+参考
+
+- [https://ja.confluence.atlassian.com/doc/confluence-security-advisory-2022-06-02-1130377146.html:title]
+- [https://www.jpcert.or.jp/at/2022/at220015.html:title]
+
+### 2位 - 2,176 pt 『Spring Framework における不適切なデータバインディング処理による任意コード実行の脆弱性 (CVE-2022-22965)』
+
+[f:id:motikan2010:20230105001021p:plain]
+
+リポジトリ数: 70 / スター数: 1,476
+
+> Spring Framework には、データバインディングで使用する、CachedIntrospectionResults クラス内の PropertyDescriptor オブジェクトを安全に処理しない脆弱性があります。
+その結果、攻撃者により class.classLoader を呼び出され、システム内で任意の Java コードが実行される可能性があります。
+
+　Java業界で有名なフレームワークである Spring Framework の脆弱性であるためランクインしたと考えられます。  
+
+　特定の実装方法でないと再現しない脆弱性であるため、実際のサイバー攻撃に用いることは難しそうです。
+
+PoC: <span><a href="https://github.com/BobTheShoplifter/Spring4Shell-POC" target="_blank">BobTheShoplifter / Spring4Shell-POC</a></span>
+
+参考
+
+- [https://jvndb.jvn.jp/ja/contents/2022/JVNDB-2022-001498.html:title]
+
+### 1位 - 15,134 pt 『Linux Kernel における権限昇格される脆弱性 (CVE-2022-0847 通称 Dirty Pipe)』
+
+[f:id:motikan2010:20230105001720p:plain]
+
+リポジトリ数: 80 / スター数: 2,124
+
+> Linux Kernel には、権限昇格の脆弱性があります。
+結果として、第三者が管理者に権限昇格を行う可能性があります。
+発見者は脆弱性を「Dirty Pipe」と呼称し、脆弱性を実証するコードも公開しています。
+
+　絶大なシェアを誇る Linux Kernel の権限昇格の脆弱性です。
+
+　近年の当ランキングから RCE ではなく権限昇格 が1位になるのは非常に珍しいと思っています。  
+
+　これだけ有名な脆弱性だと手元で再現させたくなりますが TryHackMe に環境が用意されており手軽に試すことができそうです。（※有償のサービス）
+[https://tryhackme.com/room/dirtypipe:embed:cite]
+
+PoC: <span><a href="https://github.com/Arinerron/CVE-2022-0847-DirtyPipe-Exploit" target="_blank">Arinerron / CVE-2022-0847-DirtyPipe-Exploit</a></span>
+
+参考
+
+- [https://www.jpcert.or.jp/wr/2022/wr221101.html#10:title]
+- [https://knqyf263.hatenablog.com/entry/2022/03/29/050815:title]
 
 ## まとめ
 
-　WordPressプラグインの脆弱性を悪用されてサイトが改ざんされるような事例が度々上がっており、今回このような調査を行いましたが、結構プラグインがアップデートされているサイトが多いという印象でした。
+　2021年に Log4Shell があったため、比較してしまうと2022年は大人しめだった印象です。
 
-　調査前は、利用者の 10% 程はプラグインのアップデートをしていないのではと考えていました。  
-　ですが、実際は 0.00 数パーセントが対応できていない状況でした。
+　2023年にはどのような脆弱性がでてくるか楽しみです。
 
-　本調査ではその点が定量化できたので、良かった点かと。
+### 簡易一覧
+
+|| スコア | 公表日 | CVE ID | リポ数 | スター合計 |
+| -: | -: | - | - | -: | -: |
+|  1位 | 2,924 | 2022/03/07 | CVE-2022-0847  | 80 | 2,124 |
+|  2位 | 2,176 | 2022/04/01 | CVE-2022-22965 | 70 | 1,476 |
+|  3位 | 2,131 | 2022/06/03 | CVE-2022-26134 | 62 | 1,511 |
+|  4位 | 1,683 | 2022/06/01 | CVE-2022-30190 | 75 |   933 |
+|  5位 | 1,479 | 2022/04/11 | CVE-2022-22954 | 26 | 1,219 |
+|  6位 | 1,475 | 2022/05/05 | CVE-2022-1388  | 61 |   865 |
+|  7位 | 1,289 | 2022/03/03 | CVE-2022-22947 | 55 |   739 |
+|  8位 |   821 | 2022/11/01 | CVE-2022-3602  |  8 |   741 |
+|  9位 |   766 | 2022/09/21 | CVE-2022-39197 | 13 |   636 |
+| 10位 |   753 | 2022/12/15 | CVE-2022-46689 |  3 |   723 |
 
 ## 参考
 
-- [WordPress Vulnerability Database](https://www.wordfence.com/threat-intel/vulnerabilities/)
+- <span><a href="https://nvd.nist.gov/" target="_blank">NVD</a></span>
+- <span><a href="https://jvndb.jvn.jp/" target="_blank">JVN iPedia - 脆弱性対策情報データベース</a></span>
+
+## 更新履歴
+
+- 2023年01月05日 新規作成
 
 
 [blog:g:12921228815726579926:banner]

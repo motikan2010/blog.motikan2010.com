@@ -1,95 +1,150 @@
-<div align="center">[f:id:motikan2010:20190617024001p:plain]</div>
+<figure class="figure-image figure-image-fotolife" title="NAXSIのロゴ">[f:id:motikan2010:20190604003128p:plain:alt=NAXSI-Logo]<figcaption>NAXSIのロゴ</figcaption></figure>
 
 <div class="contents-box">
   <p>[:contents]</p>
 </div>
 
 ## はじめに
-　Webサイトの管理画面が推測されることにより、サイトの改ざん等の被害が増えてきているようで、先月(5/9)にEC-CUBEでは下記のような注意喚起がありました。  
+　NAXSI（Nginx Anti XSS & SQL Injection）はOSSのWAFであり、スター数が3,000を超える人気を誇っており、利用してみたくなったので、インストールしてみました。  
+　ちなみにOSSのWAFとして有名なModSecurityのスター数は約2,800です。（NAXSIすごい...）
+![](https://i.imgur.com/r37TBw1.png)
 
-　以下、注意喚起の一部抜粋。
-> 2. 管理画⾯の URL が /admin/ など<span style="color: #ff0000">推測されやすい URL</span> になっていないか
-管理画⾯の URL を変更せず /admin/ のままで運⽤していた場合、攻撃者が管理画⾯にア
-クセスしやすい状況になっておりますので、 早急に変更をお願いします。
 
-[【重要】サイト改ざんによるクレジットカード流出被害が増加しています。](https://www.ec-cube.net/user_data/news/201905/security_notice.pdf)
+[https://github.com/nbs-system/naxsi:embed:cite]
 
-　ここで述べられている推測されやすいURLの代表例として、<span style="color: #ff0000">ツールによって発見されるURLであること</span>があります。  
-　なので今回は各ツールがどのようなURL（管理画面へのパス）を検索しているのかを調べてみました。
-
-## 確認したツール
-
-　今回確認したツールは以下の6つです。  
-
-- OWASP ZAP
-- Arachni
-- Nikto
-- skipfish
-- Wfuzz
-- WAScan
-
-## 最悪な管理画面URLランキング
-
-### 1位 - 全てのツールで検索対象
-
-||
-|-|
-| admin |
-| administrator |
-
-　「admin」「administrator」パスはツール全てで検索されていました。
-
-　EC-CUBEでは、インストール時に管理画面のパス名を指定することができるようになっていますが、「admin」というパス名は指定できないようになっており「admin」がパスとして利用される危険性の配慮がなされていることが分かります。  
-
-　実際に下画像のように「admin」を管理画面のパスに指定すると、エラーメッセージが表示されることが確認できます。  
-[f:id:motikan2010:20190616204123p:plain:w500]  
+## 環境
+- CentOS 7.4
+- Nginx 1.16.0
+- NAXSI
 
 <!-- more -->
 
-### 2位 - 5つのツールで検索対象
+## 導入作業
+### Nginxインストール
+　NAXSIはNginxのモジュールとして動作しますので、最初にYumでNginxをインストールします。  
+バージョン「1.16.0」がインストールされました。
+#### リポジトリ追加
+```
+# vim /etc/yum.repos.d/nginx.repo
+-----
+[nginx]
+name=nginx repo
+baseurl=http://nginx.org/packages/centos/7/$basearch/
+gpgcheck=0
+enabled=1
+```
 
-||
-|-|
-| webadmin |
-| users |
-| user |
-| staff |
-| portal |
-| phpmyadmin |
-| manager |
-| manage |
-| console |
+#### インストール
+```
+# yum -y install nginx
+# nginx -v
+nginx version: nginx/1.16.0
+```
 
-### 3位 - 4つのツールで検索対象
+### NAXSIモジュールをビルド
+　YumでインストールしたNginxと同じバージョンのNginxのソースを取得・展開します。  
+```
+# cd /usr/local/src/
+# wget http://nginx.org/download/nginx-1.16.0.tar.gz
+# tar xvfz nginx-1.16.0.tar.gz
+```
+　NAXSIをGitHubから取得し、モジュールをビルドします。
+```
+# git clone https://github.com/nbs-system/naxsi.git
+# cd nginx-1.16.0
+# ./configure --with-compat --add-dynamic-module=../naxsi/naxsi_src
+# make modules
+```
+　共有モジュールが作成されたことが確認できます。
+```log-text
+# file objs/ngx_http_naxsi_module.so
+objs/ngx_http_naxsi_module.so: ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, BuildID[sha1]=0b1276f7ce6796d2388e5efeae83705f0bda9c52, not stripped
+```
 
-||
-|-|
-| iisadmin |
-| error |
-| backend |
-| administration |
-| administracion |
-| admin_ |
-| admin.php3 |
-| admin.html |
-| admin.aspx |
-| adm |
-| _admin |
+### NAXSIモジュールのロード
+```
+# cp objs/ngx_http_naxsi_module.so /etc/nginx/modules
+# vim /etc/nginx/nginx.conf
+----------
+load_module modules/ngx_http_naxsi_module.so;
+----------
+# cp /usr/local/src/naxsi/naxsi_config/naxsi_core.rules /etc/nginx/
+```
 
-### 4位以下 - 1~3つのツールで検索対象
+### ログファイルの作成
+```
+# touch /var/log/naxsi.log
+# chown nginx /var/log/naxsi.log
+```
 
-　3つ以下のツールで検索されるパスは多すぎるので、ここには記載せずに下記のところに記載しました。  
-[ツールで確認されるパス一覧](https://gist.github.com/motikan2010/5d38e15ee0e20e92748557324c722150)  
+### Nginx設定ファイル修正
+```config
+# vim /etc/nginx/conf.d/default.conf
+----------
+# ルールの読み込み
+include /etc/nginx/naxsi_core.rules;
 
-## まとめ
+server {
+    listen       80;
+    server_name  localhost;
 
-　たとえ管理画面にアクセスできても操作するには認証する必要があるから安心だと思われて、外部からのアクセスも許容しているというところもあると思います。しかし、冒頭で紹介したように実際に被害が出てきている以上、管理画面には特定のユーザのみがアクセスできるように制御する必要があります。  
-　具体的には、管理画面にはIP制限を設定し、特定のアクセス元以外からはアクセスさせないようにしましょう。  
-利用しているアプリケーションによっては、設定できるようなものもあります。
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
 
-- 各ツールの検索ディレクトリが記述されている調査リポジトリ
-[https://github.com/motikan2010/AdminDirectory:title]
+        # NAXSIの設定
+        SecRulesEnabled;
+        DeniedUrl "/50x.html";
 
-## 更新履歴
+        CheckRule "$SQL >= 8" BLOCK;
+        CheckRule "$RFI >= 8" BLOCK;
+        CheckRule "$TRAVERSAL >= 4" BLOCK;
+        CheckRule "$EVADE >= 4" BLOCK;
+        CheckRule "$XSS >= 8" BLOCK;
+        
+        # ログの出力先
+        error_log /var/log/naxsi.log;
+    }
 
-- 2019年6月19日 新規作成
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   /usr/share/nginx/html;
+    }
+}
+```
+
+### Nginxの起動
+```
+# sudo systemctl start nginx
+```
+
+### 動作確認
+
+#### 不正なリクエストを送信
+　GETパラメータにタグを指定した場合にブロックされることが確認できました。  
+ですが、デフォルトのルールでは誤検知（フォールスポジティブ）が多めなので、即本番環境への反映はしないほうがよさそうです。
+```
+http://3.112.xxx.xxx/?param=<script>
+```
+![](https://i.imgur.com/EYFjFSH.png)
+
+#### 検出ログ
+　ブロックしたログ詳細は、`error_log`ディレクティブで指定したファイルに書き込まれます。
+```log-text
+# tail -f /var/log/naxsi.log
+2019/06/03 15:13:02 [error] 31644#31644: *1 NAXSI_FMT: ip=163.zzz.yyy.zzz&server=3.112.yyy.zzz&uri=/&vers=0.56&total_processed=2&total_blocked=2&config=block&cscore0=$XSS&score0=8&zone0=ARGS&id0=1302&var_name0=param, client: 163.xxx.yyy.zzz, server: localhost, request: "GET /?param=%3Cscript%3E HTTP/1.1", host: "3.112.yyy.zzz"
+```
+
+### ブロックはしたくないけど、検出はしたい
+　`LearningMode`を設定するとブロックは無効化されますが、検出は行われログに詳細が出力されます。
+```
+# vim /etc/nginx/conf.d/default.conf
+-----
+SecRulesEnabled;
+LearningMode; # 追加
+```
+
+###　参考
+
+[https://github.com/nbs-system/naxsi/wiki:title]
+

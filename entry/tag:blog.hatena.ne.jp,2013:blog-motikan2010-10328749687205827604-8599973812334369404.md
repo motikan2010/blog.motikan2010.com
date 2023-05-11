@@ -1,255 +1,396 @@
-<div style="text-align:center;">[f:id:motikan2010:20180211221846p:plain]</div>  
+[f:id:motikan2010:20180107061741j:plain:w600]  
 
 <div class="contents-box">
   <p>[:contents]</p>
 </div>
 
-## はじめに
+## 説明するレイアウト一覧
 
-　Webアプリケーションのセキュリティを診断するツールとして、Burp Suiteが代表の１つとしてあり、拡張プラグインに頼らなくても標準の機能で多種類の診断を行うことができるほど多機能です。    
+　本記事では以下のレイアウトを説明します。  
 
-　しかし、Webアプリケーションによっては遷移方法が特殊な場合がありは、拡張プラグインに頼らなくてはいけない場合もあります。  (値が更新されるCSRFトークンが存在する等)
+| | |
+| - | - |
+| VBox クラス | 垂直にUIコントロールを配置 |
+| HBox クラス | 平行にUIコントロールを配置 |
+| FlowPane クラス | 平行にUIコントロールを配置（折り返し有り） |
+| BorderPane クラス | 上下・左右・中心の位置にUIコントロールを配置 |
+| GridPane クラス | 行と列を指定してUIコントロールを配置 |
+| TilePane クラス | クリッド状にUIコントロールを配置 |
+| StackPane クラス | 重ねてUIコントロールを配置 |
 
-　そこで、Burp Siteでは**「BApp Store」に多くの人が開発した、拡張プラグインが公開されています。**  
 
-#### 拡張プラグインのストア「BApp Store」
+### コピペで実行する場合の注意点
 
-　「BApp Store」で公開されている拡張プラグインで事足りるのであれば、独自に拡張プラグインを開発する必要はないと思っています。    
+　この記事で紹介するコード内では、「Google Guava」というライブラリを利用しています。  
+コピペで実行する場合は、「Google Guava」を導入してください。  
+　導入方法は下の記事が分かりやすいです。
+[https://weblabo.oscasierra.net/google-guava-1/:title]
 
-[https://portswigger.net/bappstore:embed:cite]
+　導入しない場合には、各リストの取り扱いの部分を以下のように修正して下さい。
+```
+-import com.google.common.collect.Lists;
++import java.util.ArrayList;
 
-　しかし、公開されている拡張プラグインで対応できない診断対象に対応するためにも、独自に拡張プラグインを作成し、**より妥協のないセキュリティ診断を行うため**にも拡張プラグインの開発方法を学習していきます。
+-List<Button> buttonList = Lists.newArrayList();
++List<Button> buttonList = new ArrayList<>();
+```
+
+[https://teratail.com/questions/140210:title]
+
+## 各レイアウトの説明
+
+### VBox クラス
+
+垂直にUIコントロールを配置します。  
+上部から順に配置されていきます。
+
+[f:id:motikan2010:20180107044324p:plain:w100]  
+[https://docs.oracle.com/javase/jp/8/javafx/api/javafx/scene/layout/VBox.html:title]
+
+```java
+import com.google.common.collect.Lists;
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+import java.util.List;
+
+public class VBoxExample extends Application {
+
+    @Override
+    public void start(Stage stage) throws Exception{
+        stage.setTitle("HBox Example");
+
+        List<Button> buttonList = Lists.newArrayList();
+        for (int i=0; i<5; i++) {
+            buttonList.add(new Button(Integer.toString(i)));
+            buttonList.get(i).setPrefWidth(80);
+        }
+
+        VBox vBox = new VBox();
+        vBox.setAlignment(Pos.CENTER);
+        vBox.setPadding(new Insets(10, 10, 10, 10));
+        vBox.getChildren().addAll(buttonList);
+
+        stage.setScene(new Scene(vBox));
+        stage.show();
+    }
+}
+```
+
+　UIコントロール間に間隔を空けることも可能です。
+```java
+VBox vBox = new VBox();
+vBox.setAlignment(Pos.CENTER);
+vBox.setPadding(new Insets(10, 10, 10, 10));
+vBox.setSpacing(5.0); // 追加
+vBox.getChildren().addAll(buttonList);
+```
+[f:id:motikan2010:20180107044413p:plain:w100]
+
 
 <!-- more -->
 
-　ユニークな拡張プラグインを開発を開発できたら、BApp Storeに公開するのもありだと思います。  
-　良い拡張プラグインを開発する際に気を付ける点は下記のブログにまとめられています。  
 
-[http://blog.portswigger.net/2018/01/your-recipe-for-bapp-store-success.html:embed:cite]
+### HBox クラス
+平行にUIコントロールを配置します。  
+[f:id:motikan2010:20180107044758p:plain:w450]
 
-　今回は手始めに「Hello, world!」拡張プラグインを開発していきます。  
-拡張ということもあり、Burp Suiteにメインの処理は任せるようにし、送信するリクエストの加工や受信したレスポンスの検査等を拡張プラグインで行うようになっていくと考えています。
+[https://docs.oracle.com/javase/jp/8/javafx/api/javafx/scene/layout/HBox.html:title]
 
-## 開発環境
 
-　拡張プラグインは <span style="color: #ff0000">**Java・Ruby・Python で開発できます**</span>が、今回はJavaを用いて開発を行なっていきます。  
-
-今回作成するプロジェクトのリポジトリは下記になります。
-
-[https://github.com/motikan2010/Burp-Suite-Learning-Chapter01:title]
-
-　私の開発環境は以下のようになっています。  
-
-| | |
-|-|-|
-| OS | macOS 10.12 Sierra |
-| プログラム言語 | Java8 |
-| ビルドツール | Maven |
-| IDE | IntelliJ IDEA |
-
-## 実装
-
-### 1. ディレクトリ構造
-
-　最終的なディレクトリ構造は下記のようになります。
-
-<div class="md-code" style="width:100%">
-```
-.
-├── pom.xml
-└── src
-    └── main
-        └── java
-            └── burp
-                └── BurpExtender.java
-```
-</div>
-
-### 2. Burp拡張ライブラリ(Burp Extender API)の取得
-
-[https://mvnrepository.com/artifact/net.portswigger.burp.extender/burp-extender-api:title]
-
-　Burp Extender API は "Maven Repository" に登録されており、`pom.xml`ファイルを編集することで導入することができます。
-
-#### pom.xml の編集
-
-<div class="md-code" style="width:100%">
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-
-  <groupId>com.motikan2010</groupId>
-  <artifactId>burplearning</artifactId>
-  <version>1.0-SNAPSHOT</version>
-
-  <dependencies>
-    <!-- https://mvnrepository.com/artifact/net.portswigger.burp.extender/burp-extender-api -->
-    <dependency>
-      <groupId>net.portswigger.burp.extender</groupId>
-      <artifactId>burp-extender-api</artifactId>
-      <version>1.7.22</version>
-    </dependency>
-  </dependencies>
-</project>
-```
-</div>
-
-### 3. Javaファイルの作成
-
-　最初はライブラリ読込み時に実行されるコードを書いていきます。  
-
-　Burp拡張プラグインは、Javaでよく見られる mainメソッド から実行ではありません。  
-
-　下記の条件に合致するクラスを作成します。  
-
-- パッケージが <span style="color: #ff0000">burp</span> に属している
-- クラス名が <span style="color: #ff0000">BurpExtender</span>
-- インターフェース <span style="color: #ff0000">IBurpExtender</span> を実装
-
-　実行コードは、<b>registerExtenderCallbacksメソッド</b>内に書いていきます。
-
-- BurpExtender.java  
-<div class="md-code" style="width:100%">
 ```java
-package burp;
+import com.google.common.collect.Lists;
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.layout.HBox;
+import javafx.stage.Stage;
 
-import java.io.PrintWriter;
+import java.util.List;
 
-public class BurpExtender implements IBurpExtender {
+public class HBoxExample extends Application {
 
-    public void registerExtenderCallbacks(IBurpExtenderCallbacks iBurpExtenderCallbacks) {
-        // ここにコードを書いていく
+    @Override
+    public void start(Stage stage) throws Exception{
+        stage.setTitle("HBox Example");
+
+        List<Button> buttonList = Lists.newArrayList();
+        for (int i=0; i<5; i++) {
+            buttonList.add(new Button(Integer.toString(i)));
+            buttonList.get(i).setPrefWidth(80);
+        }
+
+        HBox hBox = new HBox();
+        hBox.setAlignment(Pos.CENTER);
+        hBox.setPadding(new Insets(10, 10, 10, 10));
+        hBox.getChildren().addAll(buttonList);
+
+        stage.setScene(new Scene(hBox));
+        stage.show();
     }
 }
 ```
-</div>
 
-　この記事では下記を学んでいきます。  
-
-- プラグイン名の設定と表示
-- 「Output」タブに標準メッセージの表示
-- 「Error」タブにエラーメッセージの表示、例外メッセージの表示
-- 「アラート」タブにメッセージの表示
-
-### 4. プラグインに名前を付ける
-
-[f:id:motikan2010:20180211204005p:plain]  
-
-　`Name列`の値を指定できます。  
-
-<div class="md-code" style="width:100%">
+　HBox同様に、UIコントロール間に間隔を空けることも可能です。
 ```java
-// 拡張プラグインの命名
-iBurpExtenderCallbacks.setExtensionName("Hello, Burp Suite");
+HBox hBox = new HBox();
+hBox.setAlignment(Pos.CENTER);
+hBox.setPadding(new Insets(10, 10, 10, 10));
+hBox.setSpacing(5.0); // 追加
+hBox.getChildren().addAll(buttonList);
 ```
-</div>
+[f:id:motikan2010:20180107044840p:plain:w450]
 
-### 5. 「Output」タブに表示
+### FlowPane クラス
+平行にUIコントロールを配置します。  
+入りきらないUIコントロールは折り返しが行われます。
 
-[f:id:motikan2010:20180211204024p:plain]  
+[f:id:motikan2010:20180107045018p:plain:w450]  
+[https://docs.oracle.com/javase/jp/8/javafx/api/javafx/scene/layout/FlowPane.html:title]
 
-<div class="md-code" style="width:100%">
 ```java
-// メッセージを表示
-PrintWriter stdout = new PrintWriter(iBurpExtenderCallbacks.getStdout(), true);
-stdout.println("INFO : Hello, Burp Suite");
+import com.google.common.collect.Lists;
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.layout.FlowPane;
+import javafx.stage.Stage;
+
+import java.util.List;
+
+public class FlowPaneExample extends Application {
+
+    @Override
+    public void start(Stage stage) throws Exception{
+        stage.setTitle("Flow Pane Example");
+
+        List<Button> buttonList = Lists.newArrayList();
+        for (int i=0; i<5; i++) {
+            buttonList.add(new Button(Integer.toString(i)));
+            buttonList.get(i).setPrefWidth(80);
+        }
+
+        FlowPane flowPane = new FlowPane();
+        flowPane.setPadding(new Insets(10, 10, 10, 10));
+        flowPane.getChildren().addAll(buttonList);
+
+        stage.setScene(new Scene(flowPane));
+        stage.show();
+    }
+
+}
 ```
-</div>
 
-### 6. 「Errors」タブに表示
+#### HBox クラスとの違い
+ウィンドウの幅を狭めてみると、２つの違いが分かります。
 
-<div class="md-code" style="width:100%">
+- HBox　　　：ウィンドウの幅に合わせてボタンのサイズが縮小
+- FlowPane：ウィンドウの幅に合わせてボタンが次の行へ折り返し
+
+##### HBox クラス
+[f:id:motikan2010:20180107045119p:plain:w300]
+
+##### FlowPane クラス
+[f:id:motikan2010:20180107045121p:plain:w300]
+
+### BorderPane クラス
+上下・左右・中心の位置にUIコントロールを配置します。  
+
+[f:id:motikan2010:20180107051907p:plain:w250]  
+[https://docs.oracle.com/javase/jp/8/javafx/api/javafx/scene/layout/GridPane.html:title]
+
 ```java
-// エラーメッセージを表示
-PrintWriter stderr = new PrintWriter(iBurpExtenderCallbacks.getStderr(), true);
-stderr.println("ERROR : Hello, Burp Suite");
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+public class BorderPaneExample extends Application {
+
+    @Override
+    public void start(Stage stage) throws Exception{
+        stage.setTitle("Border");
+        stage.setWidth(200);
+        stage.setHeight(110);
+
+        Button topButton = new Button("Top");
+        topButton.setPrefWidth(210);
+        topButton.setPrefHeight(30);
+
+        Button leftButton = new Button("Left");
+        leftButton.setPrefHeight(30);
+
+        Button centerButton = new Button("Center");
+        centerButton.setPrefWidth(160);
+        centerButton.setPrefHeight(30);
+
+        Button rightButton = new Button("Right");
+        rightButton.setPrefHeight(30);
+
+        Button bottomButton = new Button("Bottom");
+        bottomButton.setPrefWidth(210);
+        bottomButton.setPrefHeight(30);
+
+        BorderPane borderPane = new BorderPane();
+        borderPane.setTop(topButton);
+        borderPane.setLeft(leftButton);
+        borderPane.setCenter(centerButton);
+        borderPane.setRight(rightButton);
+        borderPane.setBottom(bottomButton);
+
+        VBox vBox = new VBox();
+        vBox.getChildren().addAll(borderPane);
+
+        stage.setScene(new Scene(vBox));
+        stage.show();
+    }
+
+}
 ```
-</div>
 
-### 7. 例外メッセージを表示
+### GridPane クラス
+行と列を指定してUIコントロールを配置します。
 
-　例外メッセージはエラーと同じタブに表示されるようになっています。  
-[f:id:motikan2010:20180211204047p:plain]  
+[f:id:motikan2010:20180107051647p:plain:w250]  
+[https://docs.oracle.com/javase/jp/8/javafx/api/javafx/scene/layout/GridPane.html:title]
 
-<div class="md-code" style="width:100%">
 ```java
-throw new RuntimeException("Burp Suite exceptions");
-```
-</div>
+import com.google.common.collect.Lists;
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 
-### 8. 「アラート」タブに表示
+import java.util.List;
 
-[f:id:motikan2010:20180211204103p:plain]  
+public class VBoxExample extends Application {
 
-<div class="md-code" style="width:100%">
-```java
-iBurpExtenderCallbacks.issueAlert("Burp Suite Alerts");
-```
-</div>
+    @Override
+    public void start(Stage stage) throws Exception{
+        stage.setTitle("HBox Example");
 
-## コンパイル から プラグインの読み込み まで
+        List<Button> buttonList = Lists.newArrayList();
+        for (int i=0; i<5; i++) {
+            buttonList.add(new Button(Integer.toString(i)));
+            buttonList.get(i).setPrefWidth(80);
+        }
 
-　最終的に完成したコードは下記の通りになります。  
-このファイルをコンパイル（ビルド）し、Burp Suite で読み込んで実行させます。  
+        VBox vBox = new VBox();
+        vBox.setAlignment(Pos.CENTER);
+        vBox.setPadding(new Insets(10, 10, 10, 10));
+        vBox.setSpacing(5.0);
+        vBox.getChildren().addAll(buttonList);
 
-- BurpExtender.java
-<div class="md-code" style="width:100%">
-```java
-package burp;
-
-import java.io.PrintWriter;
-
-public class BurpExtender implements IBurpExtender {
-
-    public void registerExtenderCallbacks(IBurpExtenderCallbacks iBurpExtenderCallbacks) {
-        iBurpExtenderCallbacks.setExtensionName("Hello, Burp Suite");
-
-        PrintWriter stdout = new PrintWriter(iBurpExtenderCallbacks.getStdout(), true);
-        stdout.println("INFO : Hello, Burp Suite");
-
-        PrintWriter stderr = new PrintWriter(iBurpExtenderCallbacks.getStderr(), true);
-        stderr.println("ERROR : Hello, Burp Suite");
-
-        iBurpExtenderCallbacks.issueAlert("Burp Suite Alerts");
-
-        throw new RuntimeException("Burp Suite exceptions");
+        stage.setScene(new Scene(vBox));
+        stage.show();
     }
 }
 ```
-</div>
 
-### プロジェクトの設定
+### TilePane クラス
 
-・`File` > `Project Structure` > `Artifacts` > `From modules with dependencies...`
-[f:id:motikan2010:20180211204139p:plain]
+　クリッド状にUIコントロールを配置します。  
 
-・`OK`  
-[f:id:motikan2010:20180211204329p:plain]
+[f:id:motikan2010:20180107051732p:plain:w350]  
+[https://docs.oracle.com/javase/jp/8/javafx/api/javafx/scene/layout/TilePane.html:title]
 
-・`Apply` > `OK`  
-[f:id:motikan2010:20180211204720p:plain]
+```java
+import com.google.common.collect.Lists;
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.layout.TilePane;
+import javafx.stage.Stage;
 
-### ビルド
+import java.util.List;
 
-・`Build` > `Build Artifacts`  
-[f:id:motikan2010:20180211204812p:plain]
+public class TilePaneExample extends Application {
 
-### 拡張プラグインの読込み
+    @Override
+    public void start(Stage stage) throws Exception{
+        stage.setTitle("Tile Pane Example");
+        stage.setWidth(320);
+        stage.setHeight(130);
 
-・`Extender タブ` > `Extensions タブ` > `Add ボタン`
-[f:id:motikan2010:20180211213544p:plain]
+        List<Button> buttonList = Lists.newArrayList();
+        for (int i=0; i<16; i++) {
+            buttonList.add(new Button("Button:" + Integer.toString(i)));
+            buttonList.get(i).setPrefWidth(80);
+            buttonList.get(i).setPrefHeight(20);
+        }
 
-・`Select file ...`
-[f:id:motikan2010:20180211213540p:plain]
+        TilePane tilePane = new TilePane();
+        tilePane.getChildren().addAll(buttonList);
 
-　以上、「Hello, world!」拡張プラグインの作成と実行ができました。  
+        stage.setScene(new Scene(tilePane));
+        stage.show();
+    }
+}
+```
+ウィンドウの縮尺に合わせて配置が変わります。  
+[f:id:motikan2010:20180107062347p:plain]
 
-　次回は、Burp Suiteで取得した<span style="color: #ff0000">リクエストとレスポンスのヘッダ・ボディを表示する</span>拡張プラグインを作成していきます。  
-[https://blog.motikan2010.com/entry/2018/02/13/Burp_Suite%E3%81%AE%E6%8B%A1%E5%BC%B5%E3%82%92%E4%BD%9C%E6%88%90%E5%85%A5%E9%96%80_%E3%81%9D%E3%81%AE%EF%BC%92_-_%E3%83%AA%E3%82%AF%E3%82%A8%E3%82%B9%E3%83%88%26%E3%83%AC%E3%82%B9%E3%83%9D%E3%83%B3:embed:cite]
+### StackPane クラス
+重ねてUIコントロールを配置ができます。
+
+[f:id:motikan2010:20180107051814p:plain:w300]  
+[https://docs.oracle.com/javase/jp/8/javafx/api/javafx/scene/layout/StackPane.html:title]
+
+```java
+import javafx.application.Application;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
+
+
+public class StackPaneExample extends Application {
+
+    @Override
+    public void start(Stage stage) throws Exception{
+        stage.setTitle("Stack Pane Example");
+        stage.setWidth(260);
+        stage.setHeight(130);
+
+        Button smButton = new Button("Small Button");
+        smButton.setPrefWidth(80);
+        smButton.setPrefHeight(30);
+        smButton.setAlignment(Pos.TOP_CENTER);
+
+        Button mdButton = new Button("Medium Button");
+        mdButton.setPrefWidth(160);
+        mdButton.setPrefHeight(60);
+        mdButton.setAlignment(Pos.TOP_CENTER);
+
+        Button lgButton = new Button("Large Button");
+        lgButton.setPrefWidth(240);
+        lgButton.setPrefHeight(90);
+        lgButton.setAlignment(Pos.TOP_CENTER);
+
+        StackPane stackPane = new StackPane();
+        stackPane.setAlignment(Pos.BOTTOM_RIGHT);
+        stackPane.getChildren().addAll(lgButton, mdButton, smButton);
+
+        stage.setScene(new Scene(stackPane));
+        stage.show();
+    }
+}
+```
 
 ## 更新履歴
-
-- 2018年2月11日 新規作成
+- 2018年 1月 7日 新規作成

@@ -1,95 +1,77 @@
-<div align="center">[f:id:motikan2010:20190617024001p:plain]</div>
-
 <div class="contents-box">
   <p>[:contents]</p>
 </div>
 
 ## はじめに
-　Webサイトの管理画面が推測されることにより、サイトの改ざん等の被害が増えてきているようで、先月(5/9)にEC-CUBEでは下記のような注意喚起がありました。  
 
-　以下、注意喚起の一部抜粋。
-> 2. 管理画⾯の URL が /admin/ など<span style="color: #ff0000">推測されやすい URL</span> になっていないか
-管理画⾯の URL を変更せず /admin/ のままで運⽤していた場合、攻撃者が管理画⾯にア
-クセスしやすい状況になっておりますので、 早急に変更をお願いします。
+　最近、セキュリティ強化の為にTLS1.1以下の接続を不可にするようなサービスが増えてきています。  
+勝手にTLS1.2で接続されるだろうとWevDAVクライアントを放置していたが、接続できないという事象が発生した。
+ 
+## 検証用WebDAVサーバ
 
-[【重要】サイト改ざんによるクレジットカード流出被害が増加しています。](https://www.ec-cube.net/user_data/news/201905/security_notice.pdf)
+[https://github.com/motikan2010/WebDAV-Apache-Docker/tree/20181123:title]  
 
-　ここで述べられている推測されやすいURLの代表例として、<span style="color: #ff0000">ツールによって発見されるURLであること</span>があります。  
-　なので今回は各ツールがどのようなURL（管理画面へのパス）を検索しているのかを調べてみました。
+| | |
+|-|-|
+| 認証情報 | webdav / pass123 |
+| ディレクトリ | /wevdav |
 
-## 確認したツール
+## エラー発生
 
-　今回確認したツールは以下の6つです。  
+　TLS1.2のみを許可しているWebDAVサーバをマウントしようとしたら以下のエラーが発生した。
+```
+$ sudo mount -t davfs https://127.0.0.1/webdav /media/127.0.0.1
+/sbin/mount.davfs: Mounting failed.
+SSL handshake failed: SSL alert received: Error in protocol version
+```
 
-- OWASP ZAP
-- Arachni
-- Nikto
-- skipfish
-- Wfuzz
-- WAScan
+## 原因
 
-## 最悪な管理画面URLランキング
+　gnutlsパッケージが古いのが原因。
 
-### 1位 - 全てのツールで検索対象
+[https://ja.wikipedia.org/wiki/GnuTLS:title]  
 
-||
-|-|
-| admin |
-| administrator |
+### 現在のバージョン確認
 
-　「admin」「administrator」パスはツール全てで検索されていました。
+```
+$ sudo yum list installed | grep gnutls
+gnutls.x86_64                        2.8.5-4.el6_2.2               installed
+```
 
-　EC-CUBEでは、インストール時に管理画面のパス名を指定することができるようになっていますが、「admin」というパス名は指定できないようになっており「admin」がパスとして利用される危険性の配慮がなされていることが分かります。  
+## 解決策
 
-　実際に下画像のように「admin」を管理画面のパスに指定すると、エラーメッセージが表示されることが確認できます。  
-[f:id:motikan2010:20190616204123p:plain:w500]  
+　gnutlsパッケージをアップデートすればTLS1.2に対応される。
 
-<!-- more -->
+```
+$ sudo yum -y update gnutls
+```
 
-### 2位 - 5つのツールで検索対象
+### アップデート後のバージョン
 
-||
-|-|
-| webadmin |
-| users |
-| user |
-| staff |
-| portal |
-| phpmyadmin |
-| manager |
-| manage |
-| console |
+```
+$ sudo yum list installed | grep gnutls
+gnutls.x86_64                        2.12.23-21.18.amzn1           @amzn-main
+```
 
-### 3位 - 4つのツールで検索対象
+### 動作確認
 
-||
-|-|
-| iisadmin |
-| error |
-| backend |
-| administration |
-| administracion |
-| admin_ |
-| admin.php3 |
-| admin.html |
-| admin.aspx |
-| adm |
-| _admin |
+　検証として利用しているWevDAVサーバの証明書は適当なものを使っているので、警告が出ているが問題なくマウントができていることが確認できる。
+```
+$ sudo mount -t davfs https://127.0.0.1/webdav /media/127.0.0.1
+/sbin/mount.davfs: the server certificate does not match the server name
+/sbin/mount.davfs: the server certificate is not trusted
+  issuer:      XX, XX, XX, XX
+  subject:     XX, XX, XX, XX
+  identity:    XX
+  fingerprint: 9b:dc:c1:34:b5:3c:68:10:c7:c5:6d:8f:fa:25:7a:51:46:70:22:ff
+You only should accept this certificate, if you can
+verify the fingerprint! The server might be faked
+or there might be a man-in-the-middle-attack.
+Accept certificate for this session? [y,N] y
+/sbin/mount.davfs: Warning: can't write entry into mtab, but will mount the file system anyway
 
-### 4位以下 - 1~3つのツールで検索対象
+# マウントができている
+$ df | grep webdav
+https://127.0.0.1/webdav  26666664 13333332  13333332  50% /media/127.0.0.1
+```
 
-　3つ以下のツールで検索されるパスは多すぎるので、ここには記載せずに下記のところに記載しました。  
-[ツールで確認されるパス一覧](https://gist.github.com/motikan2010/5d38e15ee0e20e92748557324c722150)  
-
-## まとめ
-
-　たとえ管理画面にアクセスできても操作するには認証する必要があるから安心だと思われて、外部からのアクセスも許容しているというところもあると思います。しかし、冒頭で紹介したように実際に被害が出てきている以上、管理画面には特定のユーザのみがアクセスできるように制御する必要があります。  
-　具体的には、管理画面にはIP制限を設定し、特定のアクセス元以外からはアクセスさせないようにしましょう。  
-利用しているアプリケーションによっては、設定できるようなものもあります。
-
-- 各ツールの検索ディレクトリが記述されている調査リポジトリ
-[https://github.com/motikan2010/AdminDirectory:title]
-
-## 更新履歴
-
-- 2019年6月19日 新規作成

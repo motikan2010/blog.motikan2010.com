@@ -1,4 +1,4 @@
-<div style="text-align:center;">[f:id:motikan2010:20170514015521p:plain:w500]</div>
+<div style="text-align:center;">[f:id:motikan2010:20170512014516p:plain:w500]</div>
 
 <div class="contents-box">
   <p>[:contents]</p>
@@ -6,32 +6,108 @@
 
 ## はじめに
 
-　前回に引き続き「jwt-go」でいろいろ試してみます。  
-今回は<span class="m-y">署名アルゴリズムを改ざんして送信</span>したときの挙動を確認していきます。  
+　前回、RailsのJWTライブラリである"knock"を使って署名アルゴリズムにNoneを使えるのかを試してみた(使えなかった)ので、今回はGo言語のJWTライブラリである"**jwt-go**"を使って、署名アルゴリズムに「SHA256」と「none」を試した(使えた)ことを書いていきます。  
+[http://motikan2010.hatenadiary.com/entry/2017/04/21/JSON_Web_Token%28JWT%29%E3%82%92%E4%BD%BF%E3%81%A3%E3%81%A6%E3%81%BF%E3%82%8B%E3%80%90%E3%82%BB%E3%82%AD%E3%83%A5%E3%83%AA%E3%83%86%E3%82%A3%E7%B7%A8%E3%80%91:embed:cite]  
 
-[http://motikan2010.hatenadiary.com/entry/2017/05/12/jwt-go%E3%82%92%E4%BD%BF%E3%81%A3%E3%81%A6%E3%81%BF%E3%82%8B:embed:cite]  
-
-## 動作確認
-
-### 署名アルゴリズムを改ざん
-
-　なぜこんなことを試すのかというと、<span class="m-y">トークン内の署名アルゴリズムを改ざんしてリクエストを送信したときに改ざん後の署名アルゴリズムで署名の検証が行われる</span>実装があるようです。  
-  
-　詳しくは下記の記事を参照下さい。
-
-[http://oauth.jp/blog/2015/03/16/common-jws-implementation-vulnerability/:embed:cite]  
-
-　jwt-goでは署名アルゴリズムを改竄して送信したときにどのような動作をするのかを確認していきます。  
-
-[f:id:motikan2010:20170514014545j:plain]  
+[https://github.com/dgrijalva/jwt-go:embed:cite]
 
 <!-- more -->
 
-　確認に使うソースコードは前回と同様です。  
+　下記のソースコードをベースにしていろいろ試してみます。  
+要認証URLでは、トークン内のデータ文字列をクライアントに返すようにしています。ここでは「ゲスト」という文字列で固定しています。  
 
-[https://github.com/motikan/jwt-go_Sample/blob/master/main.go:title]  
+　今回はginを使って記述しています。
 
-#### ① トークンを取得
+`main.go`
+<div class="md-code" style="width:100%">
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+
+	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/request"
+	"github.com/gin-gonic/gin"
+)
+
+var secretKey = "75c92a074c341e9964329c0550c2673730ed8479c885c43122c90a2843177d5ef21cb50cfadcccb20aeb730487c11e09ee4dbbb02387242ef264e74cbee97213"
+
+func main() {
+	r := gin.Default()
+
+	r.GET("/api/", func(c *gin.Context) {
+		/*
+		   アルゴリズムの指定
+		*/
+		token := jwt.New(jwt.GetSigningMethod("HS256"))
+		
+		token.Claims = jwt.MapClaims{
+			"user": "ゲスト",
+			"exp":  time.Now().Add(time.Hour * 1).Unix(),
+		}
+
+		/*
+		   トークンに対して署名の付与
+		*/
+		tokenString, err := token.SignedString([]byte(secretKey))
+		if err == nil {
+			c.JSON(200, gin.H{"token": tokenString})
+		} else {
+			c.JSON(500, gin.H{"message": "Could not generate token"})
+		}
+	})
+
+	r.GET("/api/private/", func(c *gin.Context) {
+		/*
+		   署名の検証
+		*/
+		token, err := request.ParseFromRequest(c.Request, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
+			b := []byte(secretKey)
+			return b, nil
+		})
+
+		if err == nil {
+			claims := token.Claims.(jwt.MapClaims)
+			msg := fmt.Sprintf("こんにちは、「 %s 」さん", claims["user"])
+			c.JSON(200, gin.H{"message": msg})
+		} else {
+			c.JSON(401, gin.H{"error": fmt.Sprint(err)})
+		}
+	})
+
+	r.Run(":8080")
+}
+```
+</div>
+
+　実際に署名アルゴリズムに「HS256」と「none」を指定した動作を確認していきます。
+
+## 動作確認
+
+### サンプルなどでよく見られる"HS256"を使用
+
+[f:id:motikan2010:20170512014541j:plain]  
+
+#### ①トークン必要URLにアクセス
+
+<div class="md-code" style="width:100%">
+```
+$ curl -v http://example.jp:8080/api/private/
+GET /api/private/ HTTP/1.1
+Host: example.jp:8080
+
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json; charset=utf-8
+Date: Thu, 11 May 2017 14:09:56 GMT
+Content-Length: 40
+
+{"error":"no token present in request"}
+```
+</div>
+
+#### ②トークンを取得
 
 <div class="md-code" style="width:100%">
 ```
@@ -41,45 +117,101 @@ Host: example.jp:8080
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 14:18:34 GMT
+Date: Thu, 11 May 2017 13:51:09 GMT
 Content-Length: 144
 
-{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.iTEWurGMvi1d90yMW0OnqbQ0QDEyB-UD4TmYF9YQXYY"}
+{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTQ1MTQyNjksInVzZXIiOiLjgrLjgrnjg4gifQ.jI9Sc22DdF3EclflQZyqxuR1mGjj3YcqljsBo2IRn4Y"}
 ```
 </div>
 
-　トークンヘッダの署名アルゴリスムを改ざんします。
+||base64デコード|
+|-|-|
+|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9|{"alg":"HS256","typ":"JWT"}|
+|eyJleHAiOjE0OTQ1MTQyNjksInVzZXIiOiLjgrLjgrnjg4gifQ|{"exp":1494514269,"user":"ゲスト"}|
+|jI9Sc22DdF3EclflQZyqxuR1mGjj3YcqljsBo2IRn4Y|署名(シグネチャ)|
 
-|||bsae64エンコード|
-|-|-|-|
-|改ざん前|{"alg":"HS256","typ":"JWT"}|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9|
-|改ざん後|{"alg":"none","typ":"JWT"}|eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K|
+本来であれば「ゲスト」という部分にユーザIDなどの識別子が格納され、ユーザを識別するために使用されます。
 
-#### ② 署名アルゴリズムを"none"に改ざんしてリクエストを送信
+#### ③発行されたトークンを送信
 
 <div class="md-code" style="width:100%">
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ."
+$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTQ1MTQyNjksInVzZXIiOiLjgrLjgrnjg4gifQ.jI9Sc22DdF3EclflQZyqxuR1mGjj3YcqljsBo2IRn4Y"
 GET /api/private/ HTTP/1.1
 Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.
+User-Agent: curl/7.43.0
+Accept: */*
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTQ1MTQyNjksInVzZXIiOiLjgrLjgrnjg4gifQ.jI9Sc22DdF3EclflQZyqxuR1mGjj3YcqljsBo2IRn4Y
 
-HTTP/1.1 401 Unauthorized
+HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 14:30:26 GMT
-Content-Length: 49
+Date: Thu, 11 May 2017 13:53:30 GMT
+Content-Length: 56
 
-{"error":"'none' signature type is not allowed"}
+{"message":"こんにちは、「 ゲスト 」さん"}
 ```
 </div>
 
-　ステータスコードは「401 Unauthorized」、レスポンスボディに「`'none' signature type is not allowed`」とある通り、
-改ざん後の署名アルゴリズムが適用されず、<span style="color: #d32f2f">署名の検証には失敗しました</span>。  
-[f:id:motikan2010:20170514014735j:plain]  
+　「ゲスト」を「管理者」という文字列に改ざんしてリクエストを送信したらどうなるでしょうか？
 
-### トークン発行時「SHA256」、検証には「none」
+||base64エンコード|
+|-|-|
+|{"exp":1494514269,"user":"管理者"}|eyJleHAiOjE0OTQ1MTQyNjksInVzZXIiOiLnrqHnkIbogIUifQo=|
 
-　"none"にするため、ソースコードの下記の部分を変更します。
+[f:id:motikan2010:20170512014603j:plain]  
+
+#### ④トークンを改ざんして送信
+
+<div class="md-code" style="width:100%">
+```
+curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTQ1MTQyNjksInVzZXIiOiLnrqHnkIbogIUifQo=.jI9Sc22DdF3EclflQZyqxuR1mGjj3YcqljsBo2IRn4Y"
+GET /api/private/ HTTP/1.1
+Host: example.jp:8080
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTQ1MTQyNjksInVzZXIiOiLnrqHnkIbogIUifQo=.jI9Sc22DdF3EclflQZyqxuR1mGjj3YcqljsBo2IRn4Y
+
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json; charset=utf-8
+Date: Thu, 11 May 2017 14:03:53 GMT
+Content-Length: 33
+
+{"error":"signature is invalid"}
+```
+</div>
+
+　署名の検証が行われ、結果的に改ざんされたことが検出されました。  
+ステータスコードも「401 Unauthorized」となっていることが確認できます。  
+
+
+### 危険と言われている署名の検証なし"None"を使用
+
+　jwt-goではアルゴリズムの指定に「none」を指定することが可能になっています。  
+「none」を指してトークンを発行することにより、トークンの検証を行われずに改ざんが行われたトークンが受け入れられるようになります。  
+[f:id:motikan2010:20170514012635j:plain]  
+
+
+「none」を指定するには、**jwt.UnsafeAllowNoneSignatureType**を指定します。
+https://github.com/dgrijalva/jwt-go#user-content-compliance  
+上記ソースコード内の３箇所を編集します。以下のようになります。
+
+<div class="md-code" style="width:100%">
+```go
+/*
+   アルゴリズムの指定
+*/
+//token := jwt.New(jwt.GetSigningMethod("HS256"))
+token := jwt.New(jwt.GetSigningMethod("none")) // https://github.com/dgrijalva/jwt-go/pull/79/files
+```
+</div>
+
+<div class="md-code" style="width:100%">
+```go
+/*
+  トークンに対して署名の付与
+*/
+//tokenString, err := token.SignedString([]byte(secretKey))
+tokenString, err := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
+```
+</div>
 
 <div class="md-code" style="width:100%">
 ```go
@@ -94,108 +226,83 @@ token, err := request.ParseFromRequest(c.Request, request.OAuth2Extractor, func(
 ```
 </div>
 
-[f:id:motikan2010:20170514015036j:plain]  
-
-#### 署名アルゴリズムを"none"に改ざんしてリクエストを送信
+#### ①トークン必要URLにアクセス
 
 <div class="md-code" style="width:100%">
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ."
+$ curl -v http://example.jp:8080/api/private/
 GET /api/private/ HTTP/1.1
 Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 15:46:04 GMT
-Content-Length: 56
-
-{"message":"こんにちは、「 ゲスト 」さん"}
-```
-</div>
-
-　署名の検証が行われていないことがわかる。  
-
-#### おまけ
-
-　ちなみに署名アルゴリズムを<b>noneに指定した状態で、シグネチャを付与</b>しリクエストを送信した場合は、以下のようなエラーになりました。
-
-||base64エンコード|
-|-|-|
-|{"alg":"none","typ":"JWT"}|eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K|
-
-<div class="md-code" style="width:100%">
-```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.SetZ6qLSbfIObsaZSNGS4hVh5h8ob0Kr4h1fJGA75-s"
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.SetZ6qLSbfIObsaZSNGS4hVh5h8ob0Kr4h1fJGA75-s
 
 HTTP/1.1 401 Unauthorized
 Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:11:03 GMT
-Content-Length: 59
+Date: Thu, 11 May 2017 14:34:36 GMT
+Content-Length: 40
 
-{"error":"'none' signing method with non-empty signature"}
+{"error":"no token present in request"}
 ```
 </div>
 
-　"none"を指定した場合はシグネチャを付与するなと怒られました。
-
-### トークン発行時「none」、検証には「SHA256」
-
-[f:id:motikan2010:20170514014808j:plain]  
-
-#### ① トークンを取得
+#### ②トークンを取得
 
 <div class="md-code" style="width:100%">
 ```
 $ curl -v http://example.jp:8080/api/
 GET /api/ HTTP/1.1
 Host: example.jp:8080
-User-Agent: curl/7.43.0
-Accept: */*
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:18:49 GMT
+Date: Thu, 11 May 2017 14:37:51 GMT
 Content-Length: 100
 
-{"token":"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ."}
+{"token":"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0k.eyJleHAiOjE0OTQ1MTcwNzEsInVzZXIiOiLjgrLjgrnjg4gifQ."}
 ```
 </div>
 
-#### ② 受信したトークンを取得
+||base64デコード|
+|-|-|
+|eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0k|{"alg":"none","typ":"JWT}|
+|eyJleHAiOjE0OTQ1MTcwNzEsInVzZXIiOiLjgrLjgrnjg4gifQ|{"exp":1494517071,"user":"ゲスト"}|
+|※署名なし|–|
+
+ここで受け取ったトークンをそのまま返しても正常にレスポンスが返ってくるのは確実なので、早速改ざんしたデータを送ってみます。  
+  
+ここで「ゲスト」を「管理者」という文字列に改ざんしてリクエストを送信したらどうなるでしょうか？
+この時に、トークンが発行された時のように、シグネチャはリクエストに含めません。  
+
+||base64エンコード|
+|-|-|
+|{"exp":1494517071,"user":"管理者"}|eyJleHAiOjE0OTQ1MTcwNzEsInVzZXIiOiLnrqHnkIbogIUifQ==|
+
+#### ③トークンを改ざんして送信
 
 <div class="md-code" style="width:100%">
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ."
+$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0k.eyJleHAiOjE0OTQ1MTcwNzEsInVzZXIiOiLnrqHnkIbogIUifQ==."
 GET /api/private/ HTTP/1.1
 Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ.
+Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0k.eyJleHAiOjE0OTQ1MTcwNzEsInVzZXIiOiLnrqHnkIbogIUifQ==.
 
-HTTP/1.1 401 Unauthorized
+HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:21:08 GMT
-Content-Length: 49
+Date: Thu, 11 May 2017 14:44:57 GMT
+Content-Length: 56
 
-{"error":"'none' signature type is not allowed"}
+{"message":"こんにちは、「 管理者 」さん"}
 ```
 </div>
-　エラーになりました。  
 
-トークンの発行時に署名アルゴリズムに"none"が指定されたというのは、検証時には関係ありませんでした。  
+　レスポンス内に「{"message":"こんにちは、「 管理者 」さん"}」が表示され、改ざんしたリクエストが正常処理されてしまったことが確認できます。
+このような動作をすることから「**UnsafeAllowNoneSignatureType**」の指定が必要となります。
 
+<b>↓ 続き ↓</b>
 
-<b>結論: 検証は検証時に使用する署名アルゴリズムに依存するようです。</b>
-<b>(noneは指定するな。指定するための「UnsafeAllowNoneSignatureType」というワードはいかにも怪しいが・・・。)</b>  
+　署名アルゴリズムを改ざんして送信したときの挙動を確認しています。
 
-おわり🏠  
+[https://blog.motikan2010.com/entry/2017/05/14/jwt-go%E3%82%92%E4%BD%BF%E3%81%A3%E3%81%A6%E3%81%BF%E3%82%8B_-_%E3%81%9D%E3%81%AE2:embed:cite]
 
-<hr>
-
-　次はもっとセキュリティ色の強い記事を書きたい...。
 
 ## 更新履歴
 
-- 2017年5月14日 新規作成
+- 2017年5月12日 新規作成

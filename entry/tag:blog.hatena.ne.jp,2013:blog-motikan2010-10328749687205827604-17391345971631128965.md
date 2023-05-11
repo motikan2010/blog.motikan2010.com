@@ -1,173 +1,81 @@
-## 講演資料・スライド
-### 第9回
-##### ◆ 【SecurityJAWS】Kibana Canvasで魅せる！AWS環境における脅威分析ユースケース  
+<div style="text-align:center;">[f:id:motikan2010:20180401005113j:plain]</div>
 
+<div class="contents-box"><p>[:contents]</p></div>
 
-[https://www.slideshare.net/hibinohisashi/securityjawskibana-canvasaws:embed:cite]
+## はじめに
 
+　最近、Embulkを使い始めましたが、想像していたよりも便利でした。
 
+　データ量によってはエラーも発生するみたいでしたので、メモ程度に書き留めておく。
 
-##### ◆  Security JAWS 【第9回】勉強会 WAFシグネチャとログとAI  
+[https://github.com/embulk/embulk:embed:cite]
+ 
+　Redshift上のデータをCSVファイルとして保存したり、その逆で、CSVファイルに記載されてるデータをRedshift上に保存したり(CREATE TABLE文も自動生成)可能。
 
+　その便利さ故に、業務でも利用することになりましたが、**Redshift上のデータ量**が多いことが原因で発生したエラーがありましたので記載してきます。
 
-[https://www.slideshare.net/HiroshiIwashita/security-jaws-9-wafai-98271374:embed:cite]
+　下記の設定で作成されたRedshiftインスタンスを使用した場合に発生したエラーの解決策を記述していきます。  
 
+ 　結論から書きますと、どちらのエラーも**Multi Node(ノード数を複数)** でインスタンスを作成すれば解決できました。（貧乏人には辛い・・・）
+ 
+## 検証環境
 
+### Redshift
 
-JAWS DAYSで話せなかった「Security x Serverless」の話  
-ー
+| | |
+|-|-|
+|クラスタータイプ|Single Node（ノード数：1）|
+|ノードタイプ|dc2.large|
 
-攻撃者視点から考えるAWS EC2セキュリティインシデントとその対応  
-ー
+### Embulk
 
-自動車監視のためのクラウドソリューション（仮）  
-ー
+- Embulk (0.9.4 java)
+- embulk-input-redshift (0.9.1)
 
+[https://github.com/embulk/embulk-input-jdbc/tree/master/embulk-input-redshift:embed:cite]
 
-### 第8回
-##### ◆ # Security JAWS Amazon GuardDuty 20180223
+## 検証
 
+### ケース① FETCHの最大サイズを超過
 
-[https://www.slideshare.net/HayatoKiriyama/security-jaws-amazon-guardduty-20180223:embed:cite]
+#### エラー内容
 
+```
+org.embulk.exec.PartialExecutionException: java.lang.RuntimeException: org.postgresql.util.PSQLException: ERROR: Fetch size 10000 exceeds the limit of 1000 for a single node configuration. Reduce the client fetch/cache size or upgrade to a multi node installation.
+```
 
+[https://docs.aws.amazon.com/ja_jp/redshift/latest/dg/fetch.html:title]
 
-##### ◆  踏み台環境におけるAmazon Maice活用の提案 #secjaws #secjaws08 - Speaker Deck
+#### 解決策
 
+　embulk-input-redshift にはfetchサイズを設定する**fetch_rowsオプション**が存在しているので、「1000」を指定すればエラーは発生しなくなります。
 
-[https://speakerdeck.com/fnifni21/ta-mitai-huan-jing-niokeruamazon-maicehuo-yong-falseti-an-number-secjaws-number-secjaws08:embed:cite]
+```yaml=
+in:
+  type: redshift
+  host: XXXXX.YYYYY.ap-northeast-1.redshift.amazonaws.com
+  user: root
+  password: "XXXXXX"
+  database: sampledb
+  fetch_rows: 1000
+  table: users
+  select: "*"
+```
 
+### ケース② DECLAREの上限
 
+　こちらは取得対象であるテーブルに格納されているデータ容量が大きい場合に発生します。
+（dc2.large - ノード数 1 の場合は8,000MB）
 
-##### ◆  VMware Cloud on AWS のご紹介 -セキュリティ風味-
+#### エラー内容
 
+```
+org.embulk.exec.PartialExecutionException: java.lang.RuntimeException: org.postgresql.util.PSQLException: ERROR: exceeded the maximum size allowed for the total set of cursor data: 8000MB.
+```
 
-[https://www.slideshare.net/mitsutakaohisa/vmware-cloud-on-aws:embed:cite]
+[https://docs.aws.amazon.com/ja_jp/redshift/latest/dg/declare.html#declare-constraints:title]
 
+#### 解決策
 
-
-事例に学ぶ、Splunk×AWSセキュリティモニタリングの具体策(仮)  
-ー
-
-### 第7回
-##### ◆  AWS Security JAWS 経済的にハニーポットのログ分析をするためのベストプラクティス？
-
-
-[https://www.slideshare.net/MasamitsuMaehara/aws-security-jaws:embed:cite]
-
-
-
-What you see is what you get 〜 インシデント対応するのに、まだログ分析で消耗してるの?  
-ー
-
-Infocage SiteShell on AWS  
-ー
-
-##### ◆  Auth0でAWSの認証認可を強化
-
-
-[https://www.slideshare.net/HideyaFuruta/auth0aws-82091034/1:embed:cite]
-
-
-
-##### ◆  失敗事例で学ぶ負荷試験
-
-
-[https://www.slideshare.net/taruhachi/ss-82020794:embed:cite]
-
-
-
-AUTOMOXで俺たちのVulsが殺されるのか  
-ー
-
-### 第6回
-##### ◆  ざっくりわかるAmazon Macie - Speaker Deck
-
-
-[https://speakerdeck.com/smokeymonkey/zatukuriwakaruamazon-macie:embed:cite]
-
-
-
-##### ◆  Security JAWS #6 - Speaker Deck
-
-
-[https://speakerdeck.com/nobuhiromakita/security-jaws-number-6:embed:cite]
-
-
-
-AWSで実践するリスト型アカウントハッキング対策（仮）
-\-
-
-##### ◆  DevSecOps in Multi Account
-
-
-[https://www.slideshare.net/tomoakisakatoku/devsecops-in-multi-account:embed:cite]
-
-
-
-AWS環境におけるフォレンジック(仮)  
-ー
-
-### 第5回
-Deep SecurityとAWS WAF、SNS、Lambdaを使ってうまいこと自動防御する（仮）  
-ー
-
-セキュリティのあるべき姿とSOCの重要性（仮）  
-ー
-
-##### ◆  2017_0522 security-jaws_no5_Kawano_web_up
-
-
-[https://www.slideshare.net/ShinichiroKawano/20170522-securityjawsno5kawanowebup:embed:cite]
-
-
-
-
-##### ◆  AWS使って社内CTFやってみたよ - とある診断員の備忘録  
-
-
-[http://tigerszk.hatenablog.com/entry/2017/05/29/151728:embed:cite]
-
-
-
-## 参加レポート
-### 第9回
-Security-JAWS 第9回レポート #secjaws #secjaws09 ｜ Developers.IO  
-https://dev.classmethod.jp/cloud/aws/security-jaws-09-report/
-
-### 第8回
-Security-JAWS 第8回レポート #secjaws #secjaws08 ｜ Developers.IO  
-https://dev.classmethod.jp/cloud/aws/security-jaws-08-report/
-
-### 第7回
-ASCII.jp：ハニーポットから負荷試験の失敗事例まで、Security-JAWS勉強会 (1/3)
-http://ascii.jp/elem/000/001/594/1594177/
-
-Security-JAWS第7回レポート #secjaws #secjaws07 ｜ Developers.IO
-https://dev.classmethod.jp/cloud/aws/security-jaws-07-report/
-
-blog/20171113-Security-JAWS-7.md at master · wahho/blog
-https://github.com/wahho/blog/blob/master/20171113-Security-JAWS-7.md
-
-### 第6回
-ASCII.jp：たかがアカウント、されどアカウント、AWSでの運用ベストプラクティスは？  
-http://ascii.jp/elem/000/001/551/1551875/
-
-ASCII.jp：オンプレとどこが違う？　実例に見るAWSでの不正アクセスの傾向と対策
-http://ascii.jp/elem/000/001/549/1549718/
-
-Security-JAWS第6回レポート #secjaws #secjaws06 ｜ Developers.IO  
-https://dev.classmethod.jp/study_meeting/security-jaws-06-report/
-
-2017/08/24 Security-JAWS 【第6回】参加レポート - やーまんぶろぐ  
-http://yamano3201.hatenablog.jp/entry/2017/12/26/104439
-
-### 第5回
-Security-JAWS第5回レポート #secjaws #secjaws05 ｜ Developers.IO  
-https://dev.classmethod.jp/cloud/aws/security-jaws-05-report/
-
-Security-JAWS#5レポート | cloudpack.media  
-https://cloudpack.media/31159
-
-Security-JAWS#5レポート - Qiita  
-https://qiita.com/fnifni/items/73c9664aff0e639db62e
+- 今のところノード数を増やす方法しかなさそう・・・。  
+上記リンクの情報通り、ノード数を2にしたらエラーは発生しなくなった。

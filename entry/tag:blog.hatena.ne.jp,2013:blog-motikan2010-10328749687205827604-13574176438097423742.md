@@ -1,166 +1,191 @@
-<div style="text-align:center;">
-[f:id:motikan2010:20230408202451p:plain:w600]
-</div>
+<div style="text-align:center;">[f:id:motikan2010:20220531225101p:plain]</div>
 
 <div class="contents-box"><p>[:contents]</p></div>
 
 ## はじめに
 
-　国内のWordPressで構築されている 約26万サイトを対象に調査しました。(※ 厳密には 260,135 サイト分)
+### 「Merry Maker」 とは
 
-　今回は第二弾は「脆弱なプラグイン 編」ということで、WordPressに導入されている既知の脆弱性があるプラグインに着目して調査を行いました。
+　「Merry Maker」は、Webサイトに仕込まれた<span style="color: #ff0000">Webスキマー（クレジットカード情報や認証情報を盗む悪意あるスクリプト）を検出するツール</span>です。
 
-　前回の記事は以下のものです。
-[https://blog.motikan2010.com/entry/2023/02/20/26%E4%B8%87%E3%82%B5%E3%82%A4%E3%83%88%E5%88%86%E3%81%AEWordPress%E3%82%92%E3%82%BB%E3%82%AD%E3%83%A5%E3%83%AA%E3%83%86%E3%82%A3%E8%AA%BF%E6%9F%BB%E3%80%8C%E3%83%87%E3%83%95%E3%82%A9%E3%83%AB%E3%83%88:embed:cite]
+　米国の大手百貨店Target社のセキュリティエンジニアによって開発されており、GitHub上で公開されています。  
+（WikiによるとTarget社は2013年11月に7,000万人規模の顧客情報の流出を経験しているようです）
+[https://tech.target.com/blog/meet-merry-maker:embed:cite]
+
+　ソースコードはこちらです。  
+<span><a href="https://github.com/target/mmk-ui-api" target="_blank">target/mmk-ui-api: UI, API, and Scanner (Rules Engine) services for Merry Maker</a></span>
 
 
-### 調査内容
+### ざっくりと説明
 
-　調査対象としたプラグインは、私が運用しているハニーポットに対してプラグインの有無を確認するスキャンの多さ上位のものを対象にしています。  
+- 監視対象の<span style="color: #ff0000">WebサイトをクローリングすることでWebスキマーを検出</span>
+- クローリングは <span style="color: #ff0000">Puppeteer (Node.js) </span>で記述 （クローリングが柔軟。でも少し知識が必要）
+  - ログイン処理を記述することでログイン後画面も監視可能
+- 検出条件は  <span style="color: #ff0000">yaraルール</span>で記述
+  - yaraルール：https://github.com/target/mmk-ui-api/blob/main/scanner/src/rules/skimmer.yara
 
-　そして調査対象の脆弱性は、当プラグインで特に目立つ脆弱性の有無を確認しています。  
+## 環境構築
 
-　具体的には以下4種類のプラグインと脆弱性が調査対象です。
+### Merry Maker を起動
 
-| プラグイン | 脆弱性 |
-|-|-|
-| File Manager | Arbitrary File Upload/Remote Code Execution (CVE-2020-25213) |
-| InfiniteWP Client | Authentication Bypass (CVE-2020-8772) |
-| bbPress | Unauthenticated Privilege Escalation (CVE-2020-13693) |
-| Fancy Product Designer | Unauthenticated Arbitrary File Upload (CVE-2021-24370) |
 
-　**最終的には 260,135サイト中の「プラグイン導入数」と「脆弱性有りプラグイン導入数」を出力しています。**
+　Dockerファイルが提供されており、簡単に試すことができます。  
 
-## 調査結果
+　執筆時点の最新版( 2022/04/22更新 コミットID `ef57040e9cfabcb1ece2eaa118152ea57c632637` )を利用しています。
+<div class="md-code" style="width:100%">
+```
+$ docker compose -f docker-compose.all.yml up
+```
+</div>
 
-### File Manager <= 6.8 - Arbitrary File Upload/Remote Code Execution (CVE-2020-25213)
+　Merry Maker の起動後「`http://127.0.0.1:8080/`」にアクセスするとダッシュボードが表示されます。  
+初期アクセス時には認証情報を設定する必要があります。  
 
-|| サイト数 |
-|-|-:|
-| プラグイン導入数 | 2,688 |
-| 脆弱性有りプラグイン導入数 | 11 |
+　ログイン後に監視サイトの追加などの設定ができる画面が表示されます。  
+サイドバーから各種設定ができる画面に遷移できるようになっています。
 
-<figure class="figure-image figure-image-fotolife" title="File Manager &lt;= 6.8 - Arbitrary File Upload/Remote Code Execution - Wordfence">[f:id:motikan2010:20230408153445p:plain:w600]<figcaption>File Manager &lt;= 6.8 - Arbitrary File Upload/Remote Code Execution - Wordfence</figcaption></figure>
+[f:id:motikan2010:20220530224034p:plain:w700]
 
-#### プラグインのバージョン
+### 監視対象(EC-CUBE)を構築
 
-[f:id:motikan2010:20230408151737p:plain:w600]
+　次に本記事で利用する監視対象サイトを構築します。
 
-| 導入数 | バージョン | 脆弱 | | 導入数 | バージョン | 脆弱 | | 導入数 | バージョン | 脆弱 |
-|-:|-|:-:|-|-:|-|:-:|-:|-:|-|:-:|
-| 413 | 7.1.6 |  | | 14 | 5.4 |  | | 1 | 6.7 | ○ |
-| 405 | 7.1.8 |  | | 13 | 1.9 |  | | 1 | 6.2 | ○ |
-| 369 | 7.1.7 |  | | 12 | 7 |  | | 1 | 4 |  |
-| 273 | 7.1.2 |  | | 12 | 4.1 |  | | 1 | 3.4 |  |
-| 181 | 7.1.1 |  | | 12 | 3.2 |  | | 1 | 2.9 |  |
-| 176 | 7.1.5 |  | | 12 | 2.8 |  | | 1 | 2.7 |  |
-| 173 | 不明 |  | | 10 | 1.7 |  | | 1 | 2.2 |  |
-| 149 | 7.1.4 |  | | 9 | 1.8 |  | | 1 | 1.1 |  |
-| 54 | 7.1 |  | | 8 | 3.1 |  | | 1 | 1 |  |
-| 48 | 6.9 |  | | 7 | 3.8 |  | |  |  |  |
-| 42 | 7.1.3 |  | | 7 | 2.4 |  | |  |  |  |
-| 41 | 5.3 |  | | 7 | 1.6 |  | |  |  |  |
-| 38 | 5.7 |  | | 6 | 3.7 |  | |  |  |  |
-| 29 | 4.4 |  | | 5 | 6.4 | ○ | |  |  |  |
-| 28 | 5.2 |  | | 4 | 6.5 | ○ | |  |  |  |
-| 26 | 5.9 |  | | 4 | 3 |  | |  |  |  |
-| 26 | 4.8 |  | | 4 | 2 |  | |  |  |  |
-| 24 | 5.5 |  | | 4 | 1.5 |  | |  |  |  |
-| 15 | 4.6 |  | | 3 | 2.1 |  | |  |  |  |
-| 14 | 5.8 |  | | 2 | 2.6 |  | |  |  |  |
+　EC向けCMSである EC-CUBE を監視対象にします。
 
-#### 脆弱性の割合
+　EC-CUBE は以下のリポジトリから取得できます。  バージョンは特に指定ありませんが 4.0.5 を使っています。  
+<span><a href="https://github.com/EC-CUBE/ec-cube/tree/4.0.5" target="_blank">EC-CUBE/ec-cube at 4.0.5</a></span>
 
-[f:id:motikan2010:20230408151944p:plain:w600]
+　こちらもDocker で起動します。
+<div class="md-code" style="width:100%">
+```
+$ docker-compose up
+```
+</div>
 
-### InfiniteWP Client <= 1.9.4.4 - Authentication Bypass (CVE-2020-8772)
+　起動後、DBの接続設定やサイトの情報を入力を終えると、EC-CUBEのトップページが表示されます。
 
-|| サイト数 |
-|-|-:|
-| プラグイン導入数 | 233 |
-| 脆弱性有りプラグイン導入数 | 8 |
 
-<figure class="figure-image figure-image-fotolife" title="InfiniteWP Client <= 1.9.4.4 - Authentication Bypass - Wordfence">[f:id:motikan2010:20230408154806p:plain:w600]<figcaption>InfiniteWP Client &lt;= 1.9.4.4 - Authentication Bypass - Wordfence</figcaption></figure>
+[f:id:motikan2010:20220530225113p:plain:w500]
 
-#### プラグインのバージョン
+管理画面から会員登録をします。後々ログイン後画面を監視するのに利用します。
 
-[f:id:motikan2010:20230408154149p:plain:w600]
+## Webスキマーの検知設定
 
-| 導入数 | バージョン | 脆弱 |
-|-|-|-|
-| 115 | 1.9.6 |  |
-| 63 | 1.11.0 |  |
-| 29 | 1.9.4.8.2 |  |
-| 7 | 1.9.8 |  |
-| 5 | 1.9.4.5 |  |
-| 4 | 1.8.5 | ○ |
-| 3 | 1.9.9 |  |
-| 2 | 1.9.4.11 |  |
-| 2 | 1.6.4.2 | ○ |
-| 1 | 1.6.6.3 | ○ |
-| 1 | 1.6.3.2 | ○ |
-| 1 | 不明 |  |
+　ではサイトを監視するための設定作業を行なってきます。
 
-### 脆弱性の割合
+　本記事では初めに「トップページを監視」の設定を行い、その次にログイン処理などの設定が必要な「ログイン後ページ(購入確認) を監視」の設定を行なっていきます。
 
-[f:id:motikan2010:20230408154313p:plain:w600]
+### 監視の設定入門
 
-### bbPress <= 2.6.4 - Unauthenticated Privilege Escalation (CVE-2020-13693)
+　Merry Maker は監視対象サイトに対してクローリングを実施し、HTMLやJavaScriptファイルにWebスキマーが埋め込まれていないかを検査していきます。
 
-|| サイト数 |
-|-|-:|
-| プラグイン導入数 | 29 |
-| 脆弱性有りプラグイン導入数 | 8 |
+　クローリングは Puppeteer (Headless Chrome Node.js API) が動作するようになっており、 Node.js で画面の遷移方法やログイン処理などを記述していきます。  
 
-<figure class="figure-image figure-image-fotolife" title="bbPress <= 2.6.4 - Unauthenticated Privilege Escalation - Wordfence">[f:id:motikan2010:20230408154632p:plain:w600]<figcaption>bbPress &lt;= 2.6.4 - Unauthenticated Privilege Escalation - Wordfence</figcaption></figure>
+　Webスキマーはyaraルールに従って検知されるようになっています。  
+<figure class="figure-image figure-image-fotolife" title="yaraルール抜粋">[f:id:motikan2010:20220531234106p:plain:w400]<figcaption>yaraルール抜粋</figcaption></figure>
 
-#### プラグインのバージョン
 
-[f:id:motikan2010:20230408155045p:plain:w600]
+### ケース１：トップページを監視
 
-| 導入数 | バージョン | 脆弱 |
-|-|-|-|
-| 13 | 2.6.9 |  |
-| 5 | 2.6.6 |  |
-| 3 | 2.6.5 |  |
-| 1 | 2.6.4 | ○ |
-| 1 | 2.6.3 | ○ |
-| 2 | 2.5.14 | ○ |
-| 2 | 2.5.12 | ○ |
-| 1 | 2.5.11 | ○ |
-| 1 | 2.5.8 | ○ |
+　手始めにトップページだけを監視する設定をしてみます。
 
-#### 脆弱性の割合
+#### "Sources" で遷移内容を設定
 
-[f:id:motikan2010:20230408155255p:plain:w600]
+　"Sources"画面ではWebサイトのクローリング内容を設定します。  
 
-### Fancy Product Designer <= 4.6.8 - Unauthenticated Arbitrary File Upload (CVE-2021-24370)
+　Name項目には Source の識別子を適当に記述します。今回は `shop 1` とします。  
 
-|| サイト数 |
-|-|-:|
-| プラグイン導入数 | 5 |
-| 脆弱性有りプラグイン導入数 | ? |
+　Source項目には Puppeteer の書き方でクローリング内容を記述します。  
+今回はトップ画面だけを監視するため、トップ画面にアクセスする一行だけの記述で動作します。  
 
-#### プラグインのバージョン
+[f:id:motikan2010:20220530224038p:plain:w700]
 
-<figure class="figure-image figure-image-fotolife" title="Fancy Product Designer <= 4.6.8 - Unauthenticated Arbitrary File Upload - Wordfence">[f:id:motikan2010:20230408160435p:plain:w600]<figcaption>Fancy Product Designer &lt;= 4.6.8 - Unauthenticated Arbitrary File Upload - Wordfence</figcaption></figure>
+#### "Sites"で監視間隔を設定
 
-| 導入数 | バージョン | 脆弱 |
-|-|:-|-|
-| 5 | 不明 |  |
+　"Sites"画面ではクローリング間隔を設定することができます。
+
+　今回は検証なので最短の5分間隔でクローリングを行うように設定します。
+
+　この画面で"Source"(クローリング内容)も設定する必要があるため、先ほど作成した `shop 1` を設定します。  
+[f:id:motikan2010:20220530224042p:plain:w700]
+
+#### 監視結果を確認 (検知なし)
+
+　"Alerts"に何も表示されていない。
+[f:id:motikan2010:20220530224045p:plain:w700]
+
+#### Webスキマー(マルウェア)を埋め込む
+
+　検知の検証には本物のWebスキマーを利用せずに、yaraルールに引っかかる文字列(検知文字列)をWebサイトに埋め込んで検証をしていきます。  
+
+　`digital_skimmer_slowaes` ルールの検知文字列をWebサイトに埋め込みます。
+[f:id:motikan2010:20220530232958p:plain:w500]
+
+　EC-CUBEの管理画面からJavaScriptを編集して、検知文字列が出力されるようにします。
+[f:id:motikan2010:20220530224058p:plain:w700]
+
+　編集後、`customize.js`に検知文字列が記述されていることが確認できます。
+[f:id:motikan2010:20220530232806p:plain:w700]
+
+#### 監視結果を確認 (検知あり)
+
+　検知文字列の設定後、クローリングが完了するとアラートが表示されます。
+
+　Merry Maker のダッシュボードから確認することができます。
+
+[f:id:motikan2010:20220530224050p:plain:w700]
+
+　"Alerts"画面からWebスキマーが検知されたJavaScriptファイル名を確認することができます。
+[f:id:motikan2010:20220530224054p:plain:w700]
+
+
+### ケース２：ログイン後ページ(購入確認) を監視
+
+　次は「ご注文内容のご確認」画面にWebスキマーを埋め込んで検知されることを確認していきます。  
+
+　この画面は注文完了の直前の画面であり、遷移するにはログインする必要があります。
+
+[f:id:motikan2010:20220531000707p:plain:w700]
+
+　クローリングを簡潔にするため、カートに商品を入れた状態にしておきます。以下の画面が監視対象です。  
+[f:id:motikan2010:20220530224101p:plain:w700]
+
+#### Webスキマー(マルウェア)を埋め込む
+
+　`digital_skimmer_gibberish` ルールの検知文字列をWebサイトに埋め込みます。
+
+　以下の条件に該当する文字列をサイトに埋め込みます。
+[f:id:motikan2010:20220531001111p:plain:w500]
+
+　「ご注文内容のご確認」のHTMLに検知文字列が表示されていることが確認できました。  
+[f:id:motikan2010:20220530224105p:plain:w700]
+
+#### "Sources" で遷移内容を設定
+
+　遷移内容を記述します。
+
+　ログインとリンク遷移の処理を記述する必要があります。  
+
+[f:id:motikan2010:20220530224111p:plain:w700]
+
+　全スクリプトの内容は以下のようになります。  
+**HTMLを監視するためには`htmlSnapshot`関数を利用する必要があります。**  
+[f:id:motikan2010:20220530224115p:plain:w700]
+
+#### 監視結果を確認 (検知あり)
+
+　Alertsログに「`digital_skimmer_gibberish hit`」があり、無事検知することができました。
+[f:id:motikan2010:20220530224109p:plain:w700]
+
+　文字化けしていますが、画面キャプチャを取得することも可能です。
+[f:id:motikan2010:20220530224119p:plain:w700]
 
 ## まとめ
 
-　WordPressプラグインの脆弱性を悪用されてサイトが改ざんされるような事例が度々上がっており、今回このような調査を行いましたが、結構プラグインがアップデートされているサイトが多いという印象でした。
-
-　調査前は、利用者の 10% 程はプラグインのアップデートをしていないのではと考えていました。  
-　ですが、実際は 0.00 数パーセントが対応できていない状況でした。
-
-　本調査ではその点が定量化できたので、良かった点かと。
+　2022年2月に公開されたソフトウェアあり、まだ実績などの効果は不明ですが、ECサイトを運営しておりWebスキマーを検出する仕組みを取り入れていない方は使ってみてはいかがでしょうか。　
 
 ## 参考
 
-- [WordPress Vulnerability Database](https://www.wordfence.com/threat-intel/vulnerabilities/)
-
-
-[blog:g:12921228815726579926:banner]
+- <span><a href="https://github.com/target/mmk-ui-api" target="_blank">target/mmk-ui-api: UI, API, and Scanner (Rules Engine) services for Merry Maker</a></span>
+- <span><a href="https://tech.target.com/blog/behind-the-scenes-of-merry-maker" target="_blank">Behind the Scenes of Merry Maker</a></span>
+- <span><a href="https://tech.target.com/blog/meet-merry-maker" target="_blank">Meet Merry Maker: How Target Protects Against Digital Skimming</a></span>

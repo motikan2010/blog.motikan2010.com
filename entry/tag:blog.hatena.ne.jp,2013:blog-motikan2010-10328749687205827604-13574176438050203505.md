@@ -24,13 +24,13 @@
 
 ## 環境構築
 
-　以下の環境で構築しました。
+　以下の環境で動作確認を行いました。  
 
-- **DongTai 1.2.0**
+- DongTai **1.2.0**
 - EC2 (t2.medium / メモリ4G)
-- Amazon Linux 2 (5.10.75-79.358.amzn2.x86_64)
+  - Amazon Linux 2 (5.10.75-79.358.amzn2.x86_64)
 - Docker 20.10.7
-- Docker Compose 1.29.2
+  - Docker Compose 1.29.2
 
 ### DongTaiをリポジトリから取得
 
@@ -212,21 +212,37 @@ services:
 
 ### 脆弱アプリケーションの起動
 
-　 脆弱アプリケーションには以下のSpring Bootアプリケーションを利用します。  
+　 脆弱なアプリケーションには以下のSpring Bootアプリケーションを利用します。  
 <span><a href="https://github.com/motikan2010/Vulnerability-Spring-Boot" target="_blank">motikan2010/Vulnerability-Spring-Boot</a></span>
 
+#### ビルド
+
+　起動前にビルドをします。
+
 <div class="md-code" style="width:100%">
+
 ```
--- ビルド
 $ mvn clean package -Dmaven.test.skip=true
--- 起動
-$ java -javaagent:agent.jar -jar target/vuln-0.0.1-SNAPSHOT.jar
 ```
+
 </div>
 
-　起動ログに「`[io.dongtai.agent]~`」が表示されていることが確認できます。
+#### 起動
+
+　起動時のコマンドに「`-javaagent:agent.jar`」オプション含めることで、DongTaiのJavaエージェントをロードします。  
 
 <div class="md-code" style="width:100%">
+
+```
+$ java -javaagent:agent.jar -jar target/vuln-0.0.1-SNAPSHOT.jar
+```
+
+</div>
+
+　起動が成功すると起動ログに「`[io.dongtai.agent]~`」が表示されます。
+
+<div class="md-code" style="width:100%">
+
 ```
 $ java -javaagent:agent.jar -jar target/vuln-0.0.1-SNAPSHOT.jar
 [io.dongtai.agent] The engine configuration file is initialized successfully. file is /Users/motikan2010/IdeaProjects/Vulnerability-Spring-Boot/config/iast.properties

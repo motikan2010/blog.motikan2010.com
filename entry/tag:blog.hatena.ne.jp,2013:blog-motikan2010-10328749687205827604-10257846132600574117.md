@@ -1,173 +1,153 @@
-## 講演資料・スライド
-### 第9回
-##### ◆ 【SecurityJAWS】Kibana Canvasで魅せる！AWS環境における脅威分析ユースケース  
+先日、『生つべ』というWebサービス開発しました。リリースをしたのはよいが「完成!」と言えるような状態になるのは、まだまだ時間が掛かりそう。   
+どのようなサービスなのかを簡単に説明をすると「YouTubeの動画を皆で見ながらチャットしようよ」というもの。
 
+[http://namatube.motikan2010.com/:embed:cite]
 
-[https://www.slideshare.net/hibinohisashi/securityjawskibana-canvasaws:embed:cite]
 
 
+ソースコードも公開してある。  
 
-##### ◆  Security JAWS 【第9回】勉強会 WAFシグネチャとログとAI  
 
+[https://github.com/motikan2010/NamaTube:embed:cite]
 
-[https://www.slideshare.net/HiroshiIwashita/security-jaws-9-wafai-98271374:embed:cite]
 
 
+## 利用している技術・API群の紹介
+### 認証
+このサービスでは、動画の登録にはログインすることが必要です。  
+　「Twitter」と「GitHub」アカウントを用いた**OAuth認証方式のみ**をサポートしています。
+ 
+ サービス内だけの認証(ログインIDとパスワードを登録)も用意しようか迷いましたが、最近のWebサービスでは、認証方法にOAuth認証のみというのを目にするようになっているので、今回はOAuth認証のみとしました。（2つのサービスのOAuth認証は少ないと思われるが・・・）
 
-JAWS DAYSで話せなかった「Security x Serverless」の話  
-ー
+この記事通りにやったらできました。  
 
-攻撃者視点から考えるAWS EC2セキュリティインシデントとその対応  
-ー
 
-自動車監視のためのクラウドソリューション（仮）  
-ー
+[https://qiita.com/Hassan/items/176bc2c6fd75a3e00111:title]
 
 
-### 第8回
-##### ◆ # Security JAWS Amazon GuardDuty 20180223
 
+◆ なぜGitHubアカウント？  
+　Twitterアカウントは多くの人が持っているので、認証方法として適していると思うが、なぜこのサービスに**持っている人が限られているであろうGitHubアカウント**を用いているかというと、こんな経緯があったりします。  
+　サービス開発の当初は、技術者向けのサービスとして開発しようと考えいました。具体的には、YouTubeをはじめとするニコニコ動画などといった動画配信サービスに登録されている技術系の動画を１つのサイトにまとめ、検索・評価できるようなサービス。  の予定だったが、途中で微妙...と感じ断念\_(:3 」∠ )_ 。
 
-[https://www.slideshare.net/HayatoKiriyama/security-jaws-amazon-guardduty-20180223:embed:cite]
+もともとは「Tech TV」というサービス名だったという名残があります。  
 
 
+[https://github.com/motikan2010/NamaTube/commit/714a89f5de7c3e63d3fa7d242dbb203034857c46#diff-9599427925097c3c66f26ac1e0de5cad:title]
 
-##### ◆  踏み台環境におけるAmazon Maice活用の提案 #secjaws #secjaws08 - Speaker Deck
 
 
-[https://speakerdeck.com/fnifni21/ta-mitai-huan-jing-niokeruamazon-maicehuo-yong-falseti-an-number-secjaws-number-secjaws08:embed:cite]
+### チャット
+[f:id:motikan2010:20180712213852p:plain]  
 
+Rails5になって「**Action Cable**」というWebSocketを簡単に扱えるようになる機能が追加されたので利用しました。
 
 
-##### ◆  VMware Cloud on AWS のご紹介 -セキュリティ風味-
 
+[https://railsguides.jp/action_cable_overview.html:title]
 
-[https://www.slideshare.net/mitsutakaohisa/vmware-cloud-on-aws:embed:cite]
 
 
+モデルの構成など大枠の作成こちらを参考にしました。
 
-事例に学ぶ、Splunk×AWSセキュリティモニタリングの具体策(仮)  
-ー
 
-### 第7回
-##### ◆  AWS Security JAWS 経済的にハニーポットのログ分析をするためのベストプラクティス？
+[https://qiita.com/jnchito/items/aec75fab42804287d71b:title]
 
 
-[https://www.slideshare.net/MasamitsuMaehara/aws-security-jaws:embed:cite]
 
+今回は動画毎にチャットルームが異なるようになっているので、ルーム毎にメッセージを送る方法は下記を参考にしました。
 
 
-What you see is what you get 〜 インシデント対応するのに、まだログ分析で消耗してるの?  
-ー
+[https://qiita.com/kohei1228/items/7aed5aad9c63e834c0e1:title]
 
-Infocage SiteShell on AWS  
-ー
 
-##### ◆  Auth0でAWSの認証認可を強化
 
 
-[https://www.slideshare.net/HideyaFuruta/auth0aws-82091034/1:embed:cite]
+### タグ生成
+[f:id:motikan2010:20180712214102p:plain]
+　動画新規登録時のタグ生成の処理は「**Google Natural Language API**」を利用して実現しています。
+ その中のエンティティ分析を活用することにより、動画タイトルから**固有名詞のみを抽出**し、タグとして登録しています。
 
 
+[https://qiita.com/howdy39/items/a1aef86fef1ce1b6d778#entities%E3%82%A8%E3%83%B3%E3%83%86%E3%82%A3%E3%83%86%E3%82%A3%E5%88%86%E6%9E%90:title]
 
-##### ◆  失敗事例で学ぶ負荷試験
 
 
-[https://www.slideshare.net/taruhachi/ss-82020794:embed:cite]
+▼ APIを利用しているのは、この辺り  
 
+[https://github.com/motikan2010/NamaTube/blob/20180710/app/controllers/concerns/util/analyze_entity_util.rb:title]
 
 
-AUTOMOXで俺たちのVulsが殺されるのか  
-ー
 
-### 第6回
-##### ◆  ざっくりわかるAmazon Macie - Speaker Deck
 
+### 動画の再生位置の制御
+[f:id:motikan2010:20180712214135p:plain]
+動画の埋め込みは「**YouTube Player API**」を利用しています。このAPIを活用することによって、動画ページを開いた時の再生位置を制御できています。
 
-[https://speakerdeck.com/smokeymonkey/zatukuriwakaruamazon-macie:embed:cite]
 
+[https://developers.google.com/youtube/iframe_api_reference?hl=ja:title]
 
 
-##### ◆  Security JAWS #6 - Speaker Deck
 
+動画再生ページを開いた時の時間によって再生位置を決めていますので、このサービスの肝である「みんなが同じ動画を見ている」というはこの部分で実現されています。
 
-[https://speakerdeck.com/nobuhiromakita/security-jaws-number-6:embed:cite]
+▼ この辺りで再生位置の計算・制御を行っている
 
+[https://github.com/motikan2010/NamaTube/blob/20180710/app/assets/javascripts/videos.js:title]
 
 
-AWSで実践するリスト型アカウントハッキング対策（仮）
-\-
 
-##### ◆  DevSecOps in Multi Account
+### 動画のタイトル・再生時間の取得
+動画のタイトルや長さを取得は「**YouTube Data API**」を利用しています。
 
 
-[https://www.slideshare.net/tomoakisakatoku/devsecops-in-multi-account:embed:cite]
+[https://developers.google.com/youtube/v3/docs/?hl=ja:title]
 
 
 
-AWS環境におけるフォレンジック(仮)  
-ー
+▼ APIを利用しているのは、この辺り
 
-### 第5回
-Deep SecurityとAWS WAF、SNS、Lambdaを使ってうまいこと自動防御する（仮）  
-ー
+[https://github.com/motikan2010/NamaTube/blob/20180710/app/controllers/concerns/util/youtube_api_util.rb:title]
 
-セキュリティのあるべき姿とSOCの重要性（仮）  
-ー
 
-##### ◆  2017_0522 security-jaws_no5_Kawano_web_up
 
+### 動的なフロント部分
+　動的なUIを実現するために「jQuery」と「React」で迷ったのだが、保守的なことを考えてReactを採用することにしました。JSXの方がタグ構造を直感的に把握しやすく、書き直しが簡単だと感じているので。
+　フロントに関しては、ほぼ知識がないようなものなので、とりあえず動くのを目指して実装。
+ 
+#### 新規登録画面
+[f:id:motikan2010:20180712215519p:plain]  
 
-[https://www.slideshare.net/ShinichiroKawano/20170522-securityjawsno5kawanowebup:embed:cite]
+まずはこっちの方をReactで実装した。  
+▼ソースコード
+[https://github.com/motikan2010/NamaTube/blob/20180710/front/src/videos/new.js:title]
 
 
+#### 編集画面
+[f:id:motikan2010:20180712215534p:plain]  
+　最初は「React DnD」というライブラリを利用して、ドラッグ&ドロップで上下移動させることを考えていたのだが、想像よりも実装に時間が掛かりそうだったので断念。  
+　結局、ボタン押下で上下移動させるようにした。
 
 
-##### ◆  AWS使って社内CTFやってみたよ - とある診断員の備忘録  
+[http://react-dnd.github.io/react-dnd/:title]
 
+▼ソースコード  
 
-[http://tigerszk.hatenablog.com/entry/2017/05/29/151728:embed:cite]
+[https://github.com/motikan2010/NamaTube/blob/master/front/src/videos/edit.js:title]
 
 
 
-## 参加レポート
-### 第9回
-Security-JAWS 第9回レポート #secjaws #secjaws09 ｜ Developers.IO  
-https://dev.classmethod.jp/cloud/aws/security-jaws-09-report/
+## 今後(TODO)
+▲優先度高
 
-### 第8回
-Security-JAWS 第8回レポート #secjaws #secjaws08 ｜ Developers.IO  
-https://dev.classmethod.jp/cloud/aws/security-jaws-08-report/
+- トップページ(ランディングページ)の作成
+- スマホ向けのレイアウト
+- OAuth認証の対象を増やす
+- HTTPS化
+- マイページの拡充
+- アプリ固有のエラー画面の作成
+- React(フロント)側のリファクタリング
+- MySQLへの移行
 
-### 第7回
-ASCII.jp：ハニーポットから負荷試験の失敗事例まで、Security-JAWS勉強会 (1/3)
-http://ascii.jp/elem/000/001/594/1594177/
+▼優先度低
 
-Security-JAWS第7回レポート #secjaws #secjaws07 ｜ Developers.IO
-https://dev.classmethod.jp/cloud/aws/security-jaws-07-report/
-
-blog/20171113-Security-JAWS-7.md at master · wahho/blog
-https://github.com/wahho/blog/blob/master/20171113-Security-JAWS-7.md
-
-### 第6回
-ASCII.jp：たかがアカウント、されどアカウント、AWSでの運用ベストプラクティスは？  
-http://ascii.jp/elem/000/001/551/1551875/
-
-ASCII.jp：オンプレとどこが違う？　実例に見るAWSでの不正アクセスの傾向と対策
-http://ascii.jp/elem/000/001/549/1549718/
-
-Security-JAWS第6回レポート #secjaws #secjaws06 ｜ Developers.IO  
-https://dev.classmethod.jp/study_meeting/security-jaws-06-report/
-
-2017/08/24 Security-JAWS 【第6回】参加レポート - やーまんぶろぐ  
-http://yamano3201.hatenablog.jp/entry/2017/12/26/104439
-
-### 第5回
-Security-JAWS第5回レポート #secjaws #secjaws05 ｜ Developers.IO  
-https://dev.classmethod.jp/cloud/aws/security-jaws-05-report/
-
-Security-JAWS#5レポート | cloudpack.media  
-https://cloudpack.media/31159
-
-Security-JAWS#5レポート - Qiita  
-https://qiita.com/fnifni/items/73c9664aff0e639db62e

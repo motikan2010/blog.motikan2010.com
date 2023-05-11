@@ -1,6 +1,4 @@
-<div style="text-align: center;">
-[f:id:motikan2010:20191231225911p:plain]
-</div>
+<div style="text-align:center;">[f:id:motikan2010:20200318151440p:plain:w600]</div>
 
 <div class="contents-box">
   <p>[:contents]</p>
@@ -8,45 +6,177 @@
 
 ## はじめに
 
-　2020年も6月が終わり折り返し地点を迎えました。2020年に公表されたCVEが採番されている脆弱性の中から人気なものをGitHubから検索しTOP 10を決めていきます。  
-
-検索結果のリポジトリについては下記のリポジトリで管理されています。  
-[https://github.com/nomi-sec/PoC-in-GitHub:embed:cite]  
+　Nginx では「proxy_pass」ディレクティブを指定することでフォワードプロキシ(Forward Proxy)として動作させることが可能です。  
 
 
-## TOP 10
+　しかし、モジュール等を追加していない<span class="m-y">素の Nginx の場合、 HTTPS 通信をフォワードプロキシすることはできません</span>。  
+　後述する「**ngx_http_proxy_connect_module**」を利用して解決します。  
 
-　TOP 10の算出方法としては、「リポジトリの数」と「それらのリポジトリのスターの数」を使用しています。  
-リポジトリ毎に10ポイント、スター毎に1ポイント 加算される形式で算出しています。  
-　※各脆弱性のタイトルはJVNから引用しています。
+<div style="text-align:center;">
+[f:id:motikan2010:20200318153058p:plain:w500]
+</div>
 
-### 10位 361 ポイント『複数の Microsoft Windows 製品における権限を昇格される脆弱性(CVE-2020-0787)』
-### 9位 369 ポイント『Apache Tomcat に安全でないデシリアライゼーションの問題(CVE-2020-9484)』
-### 8位 429 ポイント『SaltStack Salt における入力確認に関する脆弱性(CVE-2020-11651)』
-### 7位 434 ポイント『複数の Microsoft Windows 製品のリモートデスクトップゲートウェイにおけるリモートでコードを実行される脆弱性(CVE-2020-0609)』
-### 6位 853 ポイント『Microsoft Exchange Server におけるリモートでコードを実行される脆弱性(CVE-2020-0688)』
-### 5位 856 ポイント『Apache Tomcat の複数の脆弱性に対するアップデート(CVE-2020-1938)』
-### 4位 1045 ポイント『Oracle Fusion Middleware の Oracle WebLogic Server における WLS Core Components に関する脆弱性(CVE-2020-2551)』
-### 3位 1156 ポイント『Sonatype Nexus Repository Manager における不適切なデフォルトパーミッションに関する脆弱性(CVE-2020-11444)』
-### 2位 1662 ポイント『Microsoft Windows CryptoAPI における Elliptic Curve Cryptography (ECC) 証明書の検証不備の脆弱性(CVE-2020-0601)』
-### 1位 3214 ポイント『Microsoft SMBv3 の接続処理にリモートコード実行の脆弱性(CVE-2020-0796)』
+<!-- more -->
 
-### TOP 10 一覧
+　試しにNginxプロキシ経由でHTTPSのサイトにアクセスしたら以下のようにエラーとなりました。
+<div class="md-code">
+```
+$ curl -Lv https://github.com/ -x 127.0.0.1:3128
+*   Trying 127.0.0.1...
+* TCP_NODELAY set
+* Connected to 127.0.0.1 (127.0.0.1) port 3128 (#0)
+* Establish HTTP proxy tunnel to github.com:443
+> CONNECT github.com:443 HTTP/1.1
+> Host: github.com:443
+> User-Agent: curl/7.54.0
+> Proxy-Connection: Keep-Alive
+>
+< HTTP/1.1 400 Bad Request
+< Server: nginx/1.16.1
+< Date: Wed, 18 Mar 2020 05:24:05 GMT
+< Content-Type: text/html
+< Content-Length: 157
+< Connection: close
+<
+* Received HTTP code 400 from proxy after CONNECT
+* Closing connection 0
+curl: (56) Received HTTP code 400 from proxy after CONNECT
+```
+</div>
 
-|| スコア | CVE ID | リポ数| スター合計 |
-| - | - | - | - | - | - |
-|  1位 | 5413 | CVE-2019-0708 / BlueKeep | 111 | 4303 |
-|  2位 | 1868 | CVE-2019-11043 / PHP-FPM |  16 | 1708 |
-|  3位 |  935 | CVE-2019-2725 / Oracle WebLogic |  17 |  765 |
-|  4位 |  785 | CVE-2019-5736 / Docker & runc |  19 |  595 |
-|  5位 |  704 | CVE-2019-2618 / Oracle WebLogic |   6 |  644 |
-|  6位 |  629 | CVE-2019-12586 / Espressif ESP-IDF |   1 |  619 |
-|  7位 |  572 | CVE-2019-6447 / ES File Explorer File Manager |   1 |  562 |
-|  8位 |  545 | CVE-2019-11708 / Firefox & Thunderbird |   1 |  535 |
-|  9位 |  522 | CVE-2019-7304 / Canonical snapd |   2 |  502 |
-| 10位 |  501 | CVE-2019-11510 / Pulse Connect Secure(VPN) |   9 |  411 |
+### HTTPS 通信をプロキシする「ngx_http_proxy_connect_module」モジュール
 
+　<span class="m-y">「ngx_http_proxy_connect_module」モジュールを利用することで HTTPS サイトへのサクセスをプロキシ経由で行うことができます。</span>
+
+[https://github.com/chobits/ngx_http_proxy_connect_module:embed:cite]
+
+↓ このモジュールの説明
+> This module provides support for the CONNECT method request. This method is mainly used to tunnel SSL requests through proxy servers.
+
+
+## 環境構築
+
+### Nginx と モジュール の ダウンロード & インストール
+
+　<span class="m-y">configure 時に `--add-module=../ngx_http_proxy_connect_module` オプションを指定</span>することで、 Nginx に ngx_http_proxy_connect モジュールを組み込むことができます。  
+　導入にあたって Nginx に対してパッチを当てる必要があるため、Nginxをコンパイルする必要があります。  
+<div class="md-code">
+```
+# 作業用ディレクトリを作成
+$ mkdir work && cd work
+
+# Nginxの取得
+$ wget http://nginx.org/download/nginx-1.16.1.tar.gz
+$ tar zxvf nginx-1.16.1.tar.gz
+$ rm -f nginx-1.16.1.tar.gz
+
+# ngx_http_proxy_connect_moduleの取得（現時点の最新版は「0.0.1」）
+$ git clone https://github.com/chobits/ngx_http_proxy_connect_module.git -b v0.0.1
+
+# 作業用ディレクトリの内容は以下のようになっています
+$ ls
+nginx-1.16.1/
+ngx_http_proxy_connect_module/
+
+# Nginxに対してのパッチ適用 と Nginxのインストール
+$ cd nginx-1.16.1
+$ patch -p1 < ../ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_101504.patch
+$ ./configure --prefix=/path/to/nginx --add-module=../ngx_http_proxy_connect_module
+$ make && make install
+```
+</div>
+
+### Nginx の設定 & 起動
+
+<div class="md-code">
+```
+# Nginxのディレクトリに移動
+$ cd /path/to/nginx
+
+# 設定を以下のように修正します
+$ vim conf/nginx.conf
+---------------------------------------------
+worker_processes  1;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+
+    keepalive_timeout  65;
+
+     server {
+         listen                         3128;
+
+         # dns resolver used by forward proxying
+         resolver                       8.8.8.8;
+
+         # forward proxy for CONNECT request
+         proxy_connect;
+         proxy_connect_allow            443 563;
+         proxy_connect_connect_timeout  10s;
+         proxy_connect_read_timeout     10s;
+         proxy_connect_send_timeout     10s;
+
+         # forward proxy for non-CONNECT request
+         location / {
+             proxy_pass $scheme://$http_host$request_uri;
+             proxy_set_header Host $host;
+         }
+     }
+}
+---------------------------------------------
+
+# Nginx の起動
+$ ./sbin/nginx
+```
+</div>
+
+## 動作確認
+
+<div class="md-code">
+```
+$ curl -Lv https://github.com/ -x 127.0.0.1:3128
+*   Trying 127.0.0.1...
+* TCP_NODELAY set
+* Connected to 127.0.0.1 (127.0.0.1) port 3128 (#0)
+* Establish HTTP proxy tunnel to github.com:443
+> CONNECT github.com:443 HTTP/1.1
+
+< HTTP/1.1 200 Connection Established
+< Proxy-agent: nginx
+
+> GET / HTTP/1.1
+> Host: github.com
+> User-Agent: curl/7.54.0
+
+< HTTP/1.1 200 OK
+< date: Tue, 17 Mar 2020 09:25:15 GMT
+```
+</div>
+
+
+## ダイナミック(動的)モジュール
+
+　ngx_http_proxy_connect_module は動的モジュールとして `.so` ファイルを作成することが可能です。  
+  
+　しかし導入の際に Nginx に対してパッチを適用する必要があるため、すでにインストールされている Nginx にこのモジュールを導入することはできなさそうです。
+  
+　ダイナミックモジュールが動作しない件については、いくつか ISSUE があるようでした。  
+そんな感じでダイナミックモジュールとして組み込むことは厳しそう。
+
+## 参考
+
+- [How to Use NGINX as an HTTPS Forward Proxy Server - Alibaba Cloud Community](https://www.alibabacloud.com/blog/how-to-use-nginx-as-an-https-forward-proxy-server_595799)
 
 ## 更新履歴
 
-- 2020年7月4日 新規作成
+- 2020年3月18日 新規作成
+
+
+[blog:g:12921228815726579926:banner]

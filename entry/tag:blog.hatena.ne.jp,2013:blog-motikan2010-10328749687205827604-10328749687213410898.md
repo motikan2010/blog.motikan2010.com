@@ -1,201 +1,229 @@
-<div style="text-align:center;">[f:id:motikan2010:20170514015521p:plain:w500]</div>
+<div style="text-align: center;">[f:id:motikan2010:20170204200342p:plain:w600]</div>
 
 <div class="contents-box">
   <p>[:contents]</p>
 </div>
 
-## はじめに
+## はじめに  
 
-　前回に引き続き「jwt-go」でいろいろ試してみます。  
-今回は<span class="m-y">署名アルゴリズムを改ざんして送信</span>したときの挙動を確認していきます。  
+　IoTというワードが流行りつつあり、<span class="m-y">Bluetoothの通信を見てみたい</span>という欲求が出てきたので、Bluetooth通信のプロキシを探してみました。  
 
-[http://motikan2010.hatenadiary.com/entry/2017/05/12/jwt-go%E3%82%92%E4%BD%BF%E3%81%A3%E3%81%A6%E3%81%BF%E3%82%8B:embed:cite]  
+「btproxy」というツールが良さげ、このキャプチャ技術を応用したら以下の場面などで活用できそう。  
 
-## 動作確認
+- Bluetoothデバイス開発のデバッグ  
+- Bluetoothデバイスに対してのセキュリティ診断  
 
-### 署名アルゴリズムを改ざん
+▼ btproxy のリポジトリ  
+[https://github.com/conorpp/btproxy:embed:cite]
 
-　なぜこんなことを試すのかというと、<span class="m-y">トークン内の署名アルゴリズムを改ざんしてリクエストを送信したときに改ざん後の署名アルゴリズムで署名の検証が行われる</span>実装があるようです。  
-  
-　詳しくは下記の記事を参照下さい。
+[f:id:motikan2010:20170204200304p:plain:w600]
 
-[http://oauth.jp/blog/2015/03/16/common-jws-implementation-vulnerability/:embed:cite]  
+　本記事では、「RaspberryPi3 (以下ラズパイ)」にbtproxyをインストールし、<span class="m-y">Macbook Proからスマートフォンへのファイル転送をキャプチャ</span>します。
 
-　jwt-goでは署名アルゴリズムを改竄して送信したときにどのような動作をするのかを確認していきます。  
+　ラズパイのOSは「**2016-03-18-raspbian-jessie.img**」を使用します。  
 
-[f:id:motikan2010:20170514014545j:plain]  
+[https://www.raspberrypi.org/downloads/raspbian/:title]
 
-<!-- more -->
 
-　確認に使うソースコードは前回と同様です。  
+　では、早速導入していきましょう。  
 
-[https://github.com/motikan/jwt-go_Sample/blob/master/main.go:title]  
+## btproxyをRaspberryPi3に導入
 
-#### ① トークンを取得
+### BlueZをインストールする前の下準備
 
-<div class="md-code" style="width:100%">
-```
-$ curl -v http://example.jp:8080/api/
-GET /api/ HTTP/1.1
-Host: example.jp:8080
+　Linux上でBluetoothを扱うには **BlueZ** をインストールする必要があります。  
+まずはBlueZをインストールするために必要な依存パッケージをインストールします。
 
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 14:18:34 GMT
-Content-Length: 144
-
-{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.iTEWurGMvi1d90yMW0OnqbQ0QDEyB-UD4TmYF9YQXYY"}
-```
-</div>
-
-　トークンヘッダの署名アルゴリスムを改ざんします。
-
-|||bsae64エンコード|
-|-|-|-|
-|改ざん前|{"alg":"HS256","typ":"JWT"}|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9|
-|改ざん後|{"alg":"none","typ":"JWT"}|eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K|
-
-#### ② 署名アルゴリズムを"none"に改ざんしてリクエストを送信
+#### 必要パッケージのインストール(※失敗)
 
 <div class="md-code" style="width:100%">
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ."
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.
-
-HTTP/1.1 401 Unauthorized
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 14:30:26 GMT
-Content-Length: 49
-
-{"error":"'none' signature type is not allowed"}
+pi@raspberrypi:~ $ sudo apt-get -y install libusb-dev libdbus-1-dev libglib2.0-dev libudev-dev libical-dev libreadline-dev
+(省略)
+E: Failed to fetch http://mirrordirector.raspbian.org/raspbian/pool/main/s/systemd/libudev-dev_215-17+deb8u3_armhf.deb  404  Not Found [IP: 5.153.225.207 80]
+E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?
 ```
 </div>
 
-　ステータスコードは「401 Unauthorized」、レスポンスボディに「`'none' signature type is not allowed`」とある通り、
-改ざん後の署名アルゴリズムが適用されず、<span style="color: #d32f2f">署名の検証には失敗しました</span>。  
-[f:id:motikan2010:20170514014735j:plain]  
+　ラズパイにOSをインストールしただけでは、パッケージリストが古い状態らしい。  
 
-### トークン発行時「SHA256」、検証には「none」
+　下記のコマンドで解決します。
 
-　"none"にするため、ソースコードの下記の部分を変更します。
-
-<div class="md-code" style="width:100%">
-```go
-/*
-   署名の検証
-*/
-token, err := request.ParseFromRequest(c.Request, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
-	//b := []byte(secretKey)
-	b := jwt.UnsafeAllowNoneSignatureType
-	return b, nil
-})
-```
-</div>
-
-[f:id:motikan2010:20170514015036j:plain]  
-
-#### 署名アルゴリズムを"none"に改ざんしてリクエストを送信
+#### APTのパッケージリストの更新
 
 <div class="md-code" style="width:100%">
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ."
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 15:46:04 GMT
-Content-Length: 56
-
-{"message":"こんにちは、「 ゲスト 」さん"}
+pi@raspberrypi:~ $ sudo apt-get update
 ```
 </div>
 
-　署名の検証が行われていないことがわかる。  
+　改めて依存パッケージのインストール
 
-#### おまけ
-
-　ちなみに署名アルゴリズムを<b>noneに指定した状態で、シグネチャを付与</b>しリクエストを送信した場合は、以下のようなエラーになりました。
-
-||base64エンコード|
-|-|-|
-|{"alg":"none","typ":"JWT"}|eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K|
+#### 再び必要パッケージのインストール
 
 <div class="md-code" style="width:100%">
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.SetZ6qLSbfIObsaZSNGS4hVh5h8ob0Kr4h1fJGA75-s"
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.SetZ6qLSbfIObsaZSNGS4hVh5h8ob0Kr4h1fJGA75-s
-
-HTTP/1.1 401 Unauthorized
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:11:03 GMT
-Content-Length: 59
-
-{"error":"'none' signing method with non-empty signature"}
+pi@raspberrypi:~ $ sudo apt-get -y install libusb-dev libdbus-1-dev libglib2.0-dev libudev-dev libical-dev libreadline-dev
 ```
 </div>
 
-　"none"を指定した場合はシグネチャを付与するなと怒られました。
+　今度は成功しました。
 
-### トークン発行時「none」、検証には「SHA256」
+### BlueZ − インストール
 
-[f:id:motikan2010:20170514014808j:plain]  
-
-#### ① トークンを取得
+　BlueZの最新版は5系ですがbtproxyが動作しなかったので、4系のBlueZを使う。  
+インストール作業は"/usr/src/"ディレクトリで行う。
 
 <div class="md-code" style="width:100%">
 ```
-$ curl -v http://example.jp:8080/api/
-GET /api/ HTTP/1.1
-Host: example.jp:8080
-User-Agent: curl/7.43.0
-Accept: */*
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:18:49 GMT
-Content-Length: 100
-
-{"token":"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ."}
+pi@raspberrypi:~ $ cd /usr/src/
+$ sudo wget http://www.kernel.org/pub/linux/bluetooth/bluez-4.101.tar.xz
+$ sudo tar xvf bluez-4.101.tar.xz
+$ cd bluez-4.101/
+$ sudo ./configure --disable-systemd
+$ sudo make
+$ sudo make install
 ```
 </div>
 
-#### ② 受信したトークンを取得
+### btproxy − インストール
+
+　btproxy はGitHub上で管理されており、インストールを非常に簡単に行えるようになっています。  
 
 <div class="md-code" style="width:100%">
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ."
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ.
-
-HTTP/1.1 401 Unauthorized
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:21:08 GMT
-Content-Length: 49
-
-{"error":"'none' signature type is not allowed"}
+pi@raspberrypi:/usr/src $ sudo apt-get -y install python2.7-dev
+$ sudo git clone https://github.com/conorpp/btproxy.git
+$ cd btproxy
+$ sudo python setup.py install
 ```
 </div>
-　エラーになりました。  
 
-トークンの発行時に署名アルゴリズムに"none"が指定されたというのは、検証時には関係ありませんでした。  
+## btproxyを使う
 
+### 動作確認
 
-<b>結論: 検証は検証時に使用する署名アルゴリズムに依存するようです。</b>
-<b>(noneは指定するな。指定するための「UnsafeAllowNoneSignatureType」というワードはいかにも怪しいが・・・。)</b>  
+　ヘルプが表示されれば正常にインストールされています。
 
-おわり🏠  
+<div class="md-code" style="width:100%">
+```
+pi@raspberrypi:~ $ sudo btproxy
+usage: btproxy [-h] [-a SET_ADDRESS] [-n] [-c] [-i INTERFACE] [-s SCRIPT] [-l]
+               [-1 MASTER_NAME] [-2 SLAVE_NAME] [-C] [-v] [-z] [-q]
+               [addr_master] [addr_slave]
 
-<hr>
+Bluetooth MiTM Proxy. For analyzing bluetooth connections actively.
 
-　次はもっとセキュリティ色の強い記事を書きたい...。
+positional arguments:
+  addr_master           Bluetooth address of target master device
+  addr_slave            Bluetooth address of target slave device
 
-## 更新履歴
+optional arguments:
+  -h, --help            show this help message and exit
+  -a SET_ADDRESS, --set-address SET_ADDRESS
+                        Address to set for Bluetooth adaptor (requires -i)
+(省略)
+  -q, --inquire-again   Inquire the services again, don't reuse saved
+                        settings.
+```
+</div>
 
-- 2017年5月14日 新規作成
+### 通信のキャプチャ
+
+　まずはBluetooth機器のMACアドレスをスキャンします。  
+
+　**MacとスマートフォンのBluetooth機能をONに設定しておきます。**  
+
+[f:id:motikan2010:20170204194936p:plain:w400]  
+
+　まずは、通信を行う同士のデバイスのMACアドレスを取得します。  
+下記のコマンドの流れで、周囲にあるBluetooth機器のMACアドレスをスキャンします。
+
+<div class="md-code" style="width:100%">
+```
+pi@raspberrypi:~ $ bluetoothctl
+[NEW] Controller B8:27:EB:0A:55:1C raspberrypi [default]
+[bluetooth]# scan on
+Discovery started
+[CHG] Controller B8:27:EB:0A:55:1C Discovering: yes
+[NEW] Device 6C:76:60:8A:23:21 KCP01K
+[NEW] Device B8:E8:56:2E:23:37 XXXXXX の MacBook Pro
+
+[bluetooth]# quit // 終了
+```
+</div>
+
+　２つのBluetooth機器のMACアドレスを取得できたので、２つのデバイスを中継する『btproxy』を起動させます。  
+
+`$ btproxy <マスターデバイスのMACアドレス> <スレーブデバイスのMACアドレス>`
+
+<div class="md-code" style="width:100%">
+```
+pi@raspberrypi:/usr/src/btproxy $ sudo btproxy B8:E8:56:2E:23:37 6C:76:60:8A:23:21
+Running proxy on master  B8:E8:56:2E:23:37  and slave  6C:76:60:8A:23:21
+Using shared adapter
+Slave adapter:  hci0
+Master adapter:  hci0
+Looking up info on slave (6C:76:60:8A:23:21)
+Looking up info on master (B8:E8:56:2E:23:37)
+Spoofing master name as  KCP01K_btproxy
+paired
+Spoofing master name as  KCP01K_btproxy
+Proxy listening for connections for "None"
+Proxy listening for connections for "Headset Gateway"
+Proxy listening for connections for "Handsfree Gateway"
+Proxy listening for connections for "AV Remote Control Target"
+Proxy listening for connections for "Advanced Audio"
+Proxy listening for connections for "Android Network Access Point"
+Proxy listening for connections for "MAP SMS/MMS"
+Proxy listening for connections for "MAP EMAIL"
+Proxy listening for connections for "OBEX Phonebook Access Server"
+Proxy listening for connections for "OBEX Object Push"
+Attempting connections with 10 services on slave
+Now you're free to connect to "KCP01K_btproxy" from master device.
+Connected to service "OBEX Object Push"
+```
+</div>
+
+ 　ペアリングの確認ダイアログが表示されるので許可します。  
+
+・ノートPC側  
+[f:id:motikan2010:20170409233455p:plain:w300][f:id:motikan2010:20170409233634p:plain:w300]  
+
+・スマートフォン側  
+[f:id:motikan2010:20170204194939p:plain:w300][f:id:motikan2010:20170204194941p:plain:w300]
+
+##### ノートPC側からスマートフォン側へテキストファイルを送ってみます。  
+
+　下記のファイルを送ってみます。  
+
+`TEST.txt`
+
+<div class="md-code" style="width:100%">
+```
+Hello btproxy!!
+```
+</div>
+
+[f:id:motikan2010:20170204194954p:plain:w400]  
+
+送信と同時にbtproxyによってキャプチャされた内容が表示されます。  
+
+<div class="md-code" style="width:100%">
+```
+Accepted connection from  ('B8:E8:56:2E:23:37', 12)
+<<  '\x80\x00\x07\x10\x00\x1f@'
+>>  '\xa0\x00\x0c\x10\x00\xff\xfe\xcb\x00\x00\x00\x01'
+<<  '\x82\x00/\x01\x00\x15\x00T\x00E\x00X\x00T\x00.\x00t\x00x\x00t\x00\x00\xc3\x00\x00\x00\x0fI\x00\x12Hello btproxy!!'
+>>  '\xa0\x00\x0b\xcb\x00\x00\x00\x01I\x00\x03'
+<<  '\x81\x00\x03'
+>>  '\xa0\x00\x08\xcb\x00\x00\x00\x01'
+(104, 'Connection reset by peer') socket slave reconnecting...
+Reconnecting...
+(104, 'Connection reset by peer') socket master reconnecting...
+```
+</div>
+
+　「Hello btproxy!!」という文字が表示されておりキャプチャができていることを確認することができます。  
+
+　`/libbtproxy/replace.py`ファイルを編集することによって、通信内容を改ざんすることも可能です。

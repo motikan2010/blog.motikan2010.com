@@ -1,67 +1,104 @@
-## 動作確認
+<span style="color: #ff0000;font-weight: bold;text-align: center;">※金欠の為、サービスは終了いたしました。</span>
+<hr/>
 
-### サンプルアプリケーションの動作確認
-
-#### シリアライズ後の値を取得
-
-```
-$ curl 'http://127.0.0.1:8080/?name=TaroYamada&age=30'
-
-rO0ABXNyADZjb20uZXhhbXBsZS5pbnNlY3VyZV9kZXNlcmlhbGl6YXRpb24uY29udHJvbGxlci5QZXJzb26eHGFQi1tVeAIAAkkAA2FnZUwABG5hbWV0ABJMamF2YS9sYW5nL1N0cmluZzt4cAAAAB50AApUYXJvWWFtYWRh
-```
+<div style="text-align: center;">
+[f:id:motikan2010:20191010000552p:plain:w400]
+</div>
 
 
-```
-$echo -n 'rO0ABXNyADZjb20uZXhhbXBsZS5pbnNlY3VyZV9kZXNlcmlhbGl6YXRpb24uY29udHJvbGxlci5QZXJzb26eHGFQi1tVeAIAAkkAA2FnZUwABG5hbWV0ABJMamF2YS9sYW5nL1N0cmluZzt4cAAAAB50AApUYXJvWWFtYWRh' | base64 -D | hexdump -C
-
-00000000  ac ed 00 05 73 72 00 36  63 6f 6d 2e 65 78 61 6d  |....sr.6com.exam|
-00000010  70 6c 65 2e 69 6e 73 65  63 75 72 65 5f 64 65 73  |ple.insecure_des|
-00000020  65 72 69 61 6c 69 7a 61  74 69 6f 6e 2e 63 6f 6e  |erialization.con|
-00000030  74 72 6f 6c 6c 65 72 2e  50 65 72 73 6f 6e 9e 1c  |troller.Person..|
-00000040  61 50 8b 5b 55 78 02 00  02 49 00 03 61 67 65 4c  |aP.[Ux...I..ageL|
-00000050  00 04 6e 61 6d 65 74 00  12 4c 6a 61 76 61 2f 6c  |..namet..Ljava/l|
-00000060  61 6e 67 2f 53 74 72 69  6e 67 3b 78 70 00 00 00  |ang/String;xp...|
-00000070  1e 74 00 0a 54 61 72 6f  59 61 6d 61 64 61        |.t..TaroYamada|
-0000007e
-```
-
-[3-3. シリアル化と情報漏洩](https://www.ipa.go.jp/security/awareness/vendor/programmingv1/a03_03.html)
-
-> 最初の２バイト「AC ED」はシリアル化ストリームに固有のマジックナンバー，次の２バイト「00 05」はシリアル化仕様のバージョン番号である。
+<div class="contents-box">
+  <p>[:contents]</p>
+</div>
 
 
-#### デシリアライズの確認
+## はじめに
+
+　前回のブログ更新から1ヶ月以上経ち、たまには更新をしないといけないと思ったので最近私が作成したサイトを簡単に紹介することにします。  
+　その名は『<span class="m-y">オープンハニーポット</span>』！！  
+　まだ β版 ということで挙動がおかしい部分がありますが、興味のある方は是非さわってみてください。  
+
+[http://honypot.motikan2010.com/:embed:cite]
+
+## どのようなサイト？
+
+  ハニーポットという名が入っていることからもわかる通り、ハニーポットに関係しているサイトです。  
+　このサイトには私が運用している<span class="m-y">複数のハニーポットのアクセスログが保存されており、誰でもそのログを閲覧することができます</span>。ちなみに今は4台のハニーポットからログを収集しています。  
+
+　その4台上で動作しているハニーポットは全て同じですが、動作させているクラウドサービスがそれぞれ異なっており、「AWS」「GCP」「Azure」「Alibaba Cloud」を利用しています。  
+　その意図としては、クラウドサービスごとに攻撃の種類が異なるのかを観測したかったというのがあります。（実際は軽く確認した感じ、差異はありませんでした・・・）  
+
+　<span class="m-y">「オープンハニーポット」では、それらのハニーポットで収集されたアクセスログの詳細や時間別のアクセス数などを確認することができます。</span>
+
+<!-- more -->
+
+## 各画面の説明
+
+　簡単に現時点であるページを簡単に説明していきます。
+
+### トップ
+　オープンハニーポットの顔となるページですが、元々非公開のものとして作成していたという経緯があり、各ページへのリンクが存在しているだけで<s>寂しい</s>シンプルなページとなっています。
+
+[f:id:motikan2010:20191009222850p:plain:w400]  
+
+### リクエスト一覧
+
+　ハニーポットへのリクエストが新しい順で一覧が表示されているページです。  
+特定のIPアドレスに絞り込んで検索したり、特定のパスを除外して検索するような機能があります。  
+　IPアドレスを押下することで、そのIPアドレスのWhoisのサイトに遷移することが可能です。  
+  
+　詳細ボタンを押下すると次に紹介する リクエスト詳細 ページが表示されます。
+
+[f:id:motikan2010:20191009222923p:plain:w400]  
+
+### リクエスト詳細
+
+　ここではリクエスト一覧ページで押下されたリクエストの詳細を確認することができます。  
+下記のリクエスト例では WordPressの /xmlrpc.php への攻撃があったということが分かります。
+
+[f:id:motikan2010:20191009234700p:plain:w400]  
+
+### 時間別アクセス数
+
+　何気に一番見ているページです。クラウドサービス別にグラフを表示していますが、攻撃数が多い時は全体的に攻撃行われているなどが分かり面白いです。  
+  
+ 　デフォルトでは直近1日を表示するようになっており、グラフの下には「クラウドサービス別アクセス数」と「送信元IPアドレス別アクセス数」を表示するようにしています。
+
+[f:id:motikan2010:20191009222927p:plain:w400]  
 
 
-```
-$ echo -n 'rO0ABXNyADZjb20uZXhhbXBsZS5pbnNlY3VyZV9kZXNlcmlhbGl6YXRpb24uY29udHJvbGxlci5QZXJzb26eHGFQi1tVeAIAAkkAA2FnZUwABG5hbWV0ABJMamF2YS9sYW5nL1N0cmluZzt4cAAAAB50AApUYXJvWWFtYWRh' | \
-base64 -D | \
-curl 'http://127.0.0.1:8080/' -X POST --data-binary @-
+### 日別アクセス数
 
-「TaroYamada」30歳
-```
+　最初に作成したページで 時間別アクセス数 確認できるようになっている今はあまり役に立っていないページです。  
+　日別のアクセス数推移が確認したいとき用です。
 
-### どのように攻撃するのか
+[f:id:motikan2010:20191009222908p:plain:w400]  
 
+### ログイン画面
 
-[java.lang.Runtime.exec() Payload Workarounds - @Jackson_T](http://www.jackson-t.ca/runtime-exec-payloads.html)
+[f:id:motikan2010:20191009223554p:plain:w400]  
 
-Mac OS環境の場合は「`base64 -D`」を指定します。
+　現時点では意味のないページです。元々「リクスト一覧」と「リクエスト詳細」ページはログインしないと閲覧できないページに設定していました。  
+　理由としてはハニーポットのIPアドレスが簡単に閲覧できるのを懸念していたからですが、気にすることないと感じつつある今はログインしなくても閲覧することができます。  
+　<span class="m-y">そんな過去があり存在しているページでログインしても意味はありません。</span>
 
-#### PoC生成ツール「ysoserial」
+## 今後
 
-[frohoff/ysoserial: A proof-of-concept tool for generating payloads that exploit unsafe Java object deserialization.](https://github.com/frohoff/ysoserial)  
-　PHPでいう「PHPGGC」です。
+　最近はあまり開発に着手できていませんが、今後の展望などがあったりします。  
+① WAFとの連携  
+　実はハニーポットと一緒にWAFであるModSecurityを動作させているので、検知ログがDBに保存されている状態です。これらのデータを利用してリクエスト一覧画面にどのような攻撃があったのかを自動的に表示したいです。
 
-[ysoserial/CommonsCollections2.java at 30099844c60958e10f60749dfad6311f3e732d3d · frohoff/ysoserial](https://github.com/frohoff/ysoserial/blob/30099844c60958e10f60749dfad6311f3e732d3d/src/main/java/ysoserial/payloads/CommonsCollections2.java)
+② HTTP通信以外の補足  
+　ハニーポットに「WOWHoneypot」を利用しているので、多数のポートを扱えるソフトウェアへの移行を考えています。
 
-[commons-collections/TransformingComparator.java at collections-4.1 · apache/commons-collections](https://github.com/apache/commons-collections/blob/collections-4.1/src/main/java/org/apache/commons/collections4/comparators/TransformingComparator.java)
+③ デザインの修正  
+　トップが特にそうですがデザインを全く考えないとで作成したので、使いやすく改善したいなと。。
 
-```
-compile group: 'org.apache.commons', name: 'commons-collections4', version: '4.0'
-```
+　上のことを優先的に改善していきたいと考えいますが、ご要望など(なんでもいい)がありましたらフッターにあるご意見箱から意見をいただけると助かります。  
+[f:id:motikan2010:20191010002424p:plain:w300]
 
-「`commons-collections4`」を依存ライブラリとして追加していない場合に発生するエラー。
-```
-java.lang.ClassNotFoundException: org.apache.commons.collections4.comparators.TransformingComparator
-```
+## 参考  
+
+[https://github.com/morihisa/WOWHoneypot:embed:cite]
+
+## 更新履歴
+- 2019年10月10日 新規作成

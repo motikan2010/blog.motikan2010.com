@@ -1,67 +1,90 @@
-## 動作確認
+<div class="contents-box">
+  <p>[:contents]</p>
+</div>
 
-### サンプルアプリケーションの動作確認
+## はじめに
 
-#### シリアライズ後の値を取得
+　先日、PHP-FPMにRCEの脆弱性(CVE-2019-11043)があることが公表されました。  
 
+　脆弱性の詳細について本記事で説明しません。脆弱性を含んでいるバーションや攻撃が可能となる条件等は下のリンクの記事を参照して下さい。  
+
+　本記事では、この脆弱性に対しての攻撃をブロックするAWS WAFのルールの作成方法を紹介します。  
+「PHPのアップデート」や「Nginxの設定変更」で対応できますが、それが行えない環境下での対応手段の1つだと思っています。  
+ブロックルールは単純なので、AWS WAF以外の製品にも適用できるとも考えています。
+
+[https://jp.tenable.com/blog/cve-2019-11043-vulnerability-in-php-fpm-could-lead-to-remote-code-execution-on-nginx:embed:cite]
+
+
+
+<!-- more -->
+
+## AWS WAFの設定
+
+### 文字列マッチの条件を作成
+
+　「String and regex match conditions」を選択します。
+
+[f:id:motikan2010:20191107000348p:plain:w500]
+
+| 項目 | 設定値 |
+| - | - |
+| Name | HTTP Splitting Condition(任意) |
+| Part of the request to filter on | URI |
+| Match type | Contains |
+| Transformation | Convert to lowercase |
+| Value is base64-encoded | チェックなし |
+| Value to match | %0a |
+
+　もう1つ、「Value to match」が異なるパターンを追加します。他の項目は上記設定と同じです。  
+
+| 項目 | 設定値 |
+| - | - |
+| Value to match | %0d |
+
+　設定が環境したらこちらの画像通りになります。  
+<span class="m-y">URIに「%0a」又は「%0d」が含まれていたらブロック</span>するようしています。  
+「Transformation : Convert to lowercase」を指定することにより「%0A」「%0D」が入力された場合でも条件にマッチするようにしています。
+
+[f:id:motikan2010:20191107000354p:plain:w300]
+
+### ルールを作成
+
+　今度はルールを作成します。ルール名は「HTTP Splitting Rule」にしています。  
+このルールに先ほど作成した条件「HTTP Splitting Condition」を追加します。
+
+[f:id:motikan2010:20191107000357p:plain:w500]
+
+### ACLにルールを追加
+
+　最後にACLに対して先に作成したルールを付与します。  
+ここでは「sample-20191106-acl」の名前のACLに対してルールを付与しています。
+
+[f:id:motikan2010:20191107000401p:plain:w500]
+
+　ルールの付与が完了しているとACLのRulesにルールが表示されます。
+
+[f:id:motikan2010:20191107001412p:plain:w500]
+
+## 攻撃がブロックされることを確認
+
+　攻撃がブロックされることをPoC(neex/phuip-fpizdam)を使用して確認します。  
+結果は以下の通りになり、攻撃は失敗しブロックされていることが確認できます。
 ```
-$ curl 'http://127.0.0.1:8080/?name=TaroYamada&age=30'
-
-rO0ABXNyADZjb20uZXhhbXBsZS5pbnNlY3VyZV9kZXNlcmlhbGl6YXRpb24uY29udHJvbGxlci5QZXJzb26eHGFQi1tVeAIAAkkAA2FnZUwABG5hbWV0ABJMamF2YS9sYW5nL1N0cmluZzt4cAAAAB50AApUYXJvWWFtYWRh
+$ phuip-fpizdam http://xxxxx.ap-northeast-1.elb.amazonaws.com/script.php
+2019/11/07 00:18:46 Base status code is 403
+2019/11/07 00:18:50 Detect() returned error: no qsl candidates found, invulnerable or something wrong
 ```
 
+　ブロックされたリクエストはAWS WAFの履歴に残っています。  
+[f:id:motikan2010:20191107004606p:plain]
 
-```
-$echo -n 'rO0ABXNyADZjb20uZXhhbXBsZS5pbnNlY3VyZV9kZXNlcmlhbGl6YXRpb24uY29udHJvbGxlci5QZXJzb26eHGFQi1tVeAIAAkkAA2FnZUwABG5hbWV0ABJMamF2YS9sYW5nL1N0cmluZzt4cAAAAB50AApUYXJvWWFtYWRh' | base64 -D | hexdump -C
+## 参考
 
-00000000  ac ed 00 05 73 72 00 36  63 6f 6d 2e 65 78 61 6d  |....sr.6com.exam|
-00000010  70 6c 65 2e 69 6e 73 65  63 75 72 65 5f 64 65 73  |ple.insecure_des|
-00000020  65 72 69 61 6c 69 7a 61  74 69 6f 6e 2e 63 6f 6e  |erialization.con|
-00000030  74 72 6f 6c 6c 65 72 2e  50 65 72 73 6f 6e 9e 1c  |troller.Person..|
-00000040  61 50 8b 5b 55 78 02 00  02 49 00 03 61 67 65 4c  |aP.[Ux...I..ageL|
-00000050  00 04 6e 61 6d 65 74 00  12 4c 6a 61 76 61 2f 6c  |..namet..Ljava/l|
-00000060  61 6e 67 2f 53 74 72 69  6e 67 3b 78 70 00 00 00  |ang/String;xp...|
-00000070  1e 74 00 0a 54 61 72 6f  59 61 6d 61 64 61        |.t..TaroYamada|
-0000007e
-```
+[https://github.com/neex/phuip-fpizdam:title]  
+　環境構築（Dockerイメージ）とPoCが紹介されています。
 
-[3-3. シリアル化と情報漏洩](https://www.ipa.go.jp/security/awareness/vendor/programmingv1/a03_03.html)
+[https://github.com/SpiderLabs/owasp-modsecurity-crs/pull/1610:title]  
+　本脆弱性に対する OWASP CRSのブロックルールです。
 
-> 最初の２バイト「AC ED」はシリアル化ストリームに固有のマジックナンバー，次の２バイト「00 05」はシリアル化仕様のバージョン番号である。
-
-
-#### デシリアライズの確認
-
-
-```
-$ echo -n 'rO0ABXNyADZjb20uZXhhbXBsZS5pbnNlY3VyZV9kZXNlcmlhbGl6YXRpb24uY29udHJvbGxlci5QZXJzb26eHGFQi1tVeAIAAkkAA2FnZUwABG5hbWV0ABJMamF2YS9sYW5nL1N0cmluZzt4cAAAAB50AApUYXJvWWFtYWRh' | \
-base64 -D | \
-curl 'http://127.0.0.1:8080/' -X POST --data-binary @-
-
-「TaroYamada」30歳
-```
-
-### どのように攻撃するのか
-
-
-[java.lang.Runtime.exec() Payload Workarounds - @Jackson_T](http://www.jackson-t.ca/runtime-exec-payloads.html)
-
-Mac OS環境の場合は「`base64 -D`」を指定します。
-
-#### PoC生成ツール「ysoserial」
-
-[frohoff/ysoserial: A proof-of-concept tool for generating payloads that exploit unsafe Java object deserialization.](https://github.com/frohoff/ysoserial)  
-　PHPでいう「PHPGGC」です。
-
-[ysoserial/CommonsCollections2.java at 30099844c60958e10f60749dfad6311f3e732d3d · frohoff/ysoserial](https://github.com/frohoff/ysoserial/blob/30099844c60958e10f60749dfad6311f3e732d3d/src/main/java/ysoserial/payloads/CommonsCollections2.java)
-
-[commons-collections/TransformingComparator.java at collections-4.1 · apache/commons-collections](https://github.com/apache/commons-collections/blob/collections-4.1/src/main/java/org/apache/commons/collections4/comparators/TransformingComparator.java)
-
-```
-compile group: 'org.apache.commons', name: 'commons-collections4', version: '4.0'
-```
-
-「`commons-collections4`」を依存ライブラリとして追加していない場合に発生するエラー。
-```
-java.lang.ClassNotFoundException: org.apache.commons.collections4.comparators.TransformingComparator
-```
+## 更新履歴
+- 2019年11月 6日 新規作成

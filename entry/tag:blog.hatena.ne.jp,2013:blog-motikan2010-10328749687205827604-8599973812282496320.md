@@ -1,4 +1,4 @@
-<div style="text-align:center;">[f:id:motikan2010:20180211221846p:plain]</div>  
+<div style="text-align:center;">[f:id:motikan2010:20170725011556j:plain:w400]</div>
 
 <div class="contents-box">
   <p>[:contents]</p>
@@ -6,72 +6,21 @@
 
 ## はじめに
 
-　Webアプリケーションのセキュリティを診断するツールとして、Burp Suiteが代表の１つとしてあり、拡張プラグインに頼らなくても標準の機能で多種類の診断を行うことができるほど多機能です。    
+　今回はJava製のHTTPライブラリ「LittleProxy」を使ってみます。  
 
-　しかし、Webアプリケーションによっては遷移方法が特殊な場合がありは、拡張プラグインに頼らなくてはいけない場合もあります。  (値が更新されるCSRFトークンが存在する等)
+　Java製のHTTPライブラリは種類豊富だと思っていたのだが、想像していたよりも圧倒的に少なかった。  
+そんなことでデファクトスタンダードとなっているライブラリがなさそうなので、ほどほどにメンテナンスされている「LittleProxy」を選定しました。（とはいっても最後の修正は 2017/09/25 です）
 
-　そこで、Burp Siteでは**「BApp Store」に多くの人が開発した、拡張プラグインが公開されています。**  
+[https://github.com/adamfisk/LittleProxy:embed:cite]
 
-#### 拡張プラグインのストア「BApp Store」
-
-　「BApp Store」で公開されている拡張プラグインで事足りるのであれば、独自に拡張プラグインを開発する必要はないと思っています。    
-
-[https://portswigger.net/bappstore:embed:cite]
-
-　しかし、公開されている拡張プラグインで対応できない診断対象に対応するためにも、独自に拡張プラグインを作成し、**より妥協のないセキュリティ診断を行うため**にも拡張プラグインの開発方法を学習していきます。
+　特徴として、LittleProxy の内部では Netty 4.1 が利用されており軽快に動作します。  
+リポジトリの説明にも High performance HTTP proxy と記載あります。  
 
 <!-- more -->
 
-　ユニークな拡張プラグインを開発を開発できたら、BApp Storeに公開するのもありだと思います。  
-　良い拡張プラグインを開発する際に気を付ける点は下記のブログにまとめられています。  
+## 準備
 
-[http://blog.portswigger.net/2018/01/your-recipe-for-bapp-store-success.html:embed:cite]
-
-　今回は手始めに「Hello, world!」拡張プラグインを開発していきます。  
-拡張ということもあり、Burp Suiteにメインの処理は任せるようにし、送信するリクエストの加工や受信したレスポンスの検査等を拡張プラグインで行うようになっていくと考えています。
-
-## 開発環境
-
-　拡張プラグインは <span style="color: #ff0000">**Java・Ruby・Python で開発できます**</span>が、今回はJavaを用いて開発を行なっていきます。  
-
-今回作成するプロジェクトのリポジトリは下記になります。
-
-[https://github.com/motikan2010/Burp-Suite-Learning-Chapter01:title]
-
-　私の開発環境は以下のようになっています。  
-
-| | |
-|-|-|
-| OS | macOS 10.12 Sierra |
-| プログラム言語 | Java8 |
-| ビルドツール | Maven |
-| IDE | IntelliJ IDEA |
-
-## 実装
-
-### 1. ディレクトリ構造
-
-　最終的なディレクトリ構造は下記のようになります。
-
-<div class="md-code" style="width:100%">
-```
-.
-├── pom.xml
-└── src
-    └── main
-        └── java
-            └── burp
-                └── BurpExtender.java
-```
-</div>
-
-### 2. Burp拡張ライブラリ(Burp Extender API)の取得
-
-[https://mvnrepository.com/artifact/net.portswigger.burp.extender/burp-extender-api:title]
-
-　Burp Extender API は "Maven Repository" に登録されており、`pom.xml`ファイルを編集することで導入することができます。
-
-#### pom.xml の編集
+　プロジェクト管理ツールは"Maven"を使用して「LittleProxy」を導入しています。
 
 <div class="md-code" style="width:100%">
 ```xml
@@ -79,177 +28,448 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
+    <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.motikan2010</groupId>
-  <artifactId>burplearning</artifactId>
-  <version>1.0-SNAPSHOT</version>
+    <groupId>com.motikan2010</groupId>
+    <artifactId>littleproxysample</artifactId>
+    <version>1.0-SNAPSHOT</version>
 
-  <dependencies>
-    <!-- https://mvnrepository.com/artifact/net.portswigger.burp.extender/burp-extender-api -->
-    <dependency>
-      <groupId>net.portswigger.burp.extender</groupId>
-      <artifactId>burp-extender-api</artifactId>
-      <version>1.7.22</version>
-    </dependency>
-  </dependencies>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>1.8</java.version>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.littleshoot</groupId>
+            <artifactId>littleproxy</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+    </dependencies>
+
 </project>
 ```
 </div>
 
-### 3. Javaファイルの作成
+## 動作確認
 
-　最初はライブラリ読込み時に実行されるコードを書いていきます。  
+　今回、使用したコードは下記のリポジトリにあります。
 
-　Burp拡張プラグインは、Javaでよく見られる mainメソッド から実行ではありません。  
+[https://github.com/motikan/SampleLittleProxy/tree/15a48892c2370e24013f4cd36078ae198433658d:title]  
 
-　下記の条件に合致するクラスを作成します。  
+　プロキシを作成するにあたって主に利用するメソッドは下記の４つのメソッドであり、オーバーライドして利用します。  
 
-- パッケージが <span style="color: #ff0000">burp</span> に属している
-- クラス名が <span style="color: #ff0000">BurpExtender</span>
-- インターフェース <span style="color: #ff0000">IBurpExtender</span> を実装
+[f:id:motikan2010:20170725011900j:plain:w600]  
 
-　実行コードは、<b>registerExtenderCallbacksメソッド</b>内に書いていきます。
+・クライアント　→　プロキシ  
+・プロキシ　　　→　サーバ  
+・プロキシ　　　←　サーバ   
+・クライアント　←　プロキシ  
+　のように各ノード間の通信毎に、特定のメソッド呼び出されるようになっております。
 
-- BurpExtender.java  
+　プロキシの動作は下記の2種類のcurlコマンドで確認しています。
+
+<div class="md-code" style="width:100%">
+```
+$ curl -x 127.0.0.1:8080 http://example.com
+$ curl -x 127.0.0.1:8080 http://example.com -d "testKey=testValue" -d "testKey2=testValue2" --cookie 'CookieKey1=CookieVal1'
+```
+</div>
+
+### クライアント → プロキシ 通信（clientToProxyRequest メソッド）
+
+[f:id:motikan2010:20170725012019j:plain:w600]  
+　「クライアント」から「プロキシ」へのリクエスト通信を取得できます。
+
 <div class="md-code" style="width:100%">
 ```java
-package burp;
-
-import java.io.PrintWriter;
-
-public class BurpExtender implements IBurpExtender {
-
-    public void registerExtenderCallbacks(IBurpExtenderCallbacks iBurpExtenderCallbacks) {
-        // ここにコードを書いていく
-    }
+@Override
+public HttpResponse clientToProxyRequest(HttpObject httpObject) {
+  System.out.println("=== clientToProxyRequest ===");
+  if (httpObject instanceof HttpRequest) {
+    System.out.println(httpObject.toString());
+  }
+  return null;
 }
 ```
 </div>
 
-　この記事では下記を学んでいきます。  
-
-- プラグイン名の設定と表示
-- 「Output」タブに標準メッセージの表示
-- 「Error」タブにエラーメッセージの表示、例外メッセージの表示
-- 「アラート」タブにメッセージの表示
-
-### 4. プラグインに名前を付ける
-
-[f:id:motikan2010:20180211204005p:plain]  
-
-　`Name列`の値を指定できます。  
-
 <div class="md-code" style="width:100%">
-```java
-// 拡張プラグインの命名
-iBurpExtenderCallbacks.setExtensionName("Hello, Burp Suite");
+```
+GET http://example.com/ HTTP/1.1
+Host: example.com
+User-Agent: curl/7.43.0
+Accept: */*
+Proxy-Connection: Keep-Alive
+Content-Length: 0
 ```
 </div>
 
-### 5. 「Output」タブに表示
-
-[f:id:motikan2010:20180211204024p:plain]  
+#### HttpRequestオブジェクトに用意されているメソッド
 
 <div class="md-code" style="width:100%">
 ```java
-// メッセージを表示
-PrintWriter stdout = new PrintWriter(iBurpExtenderCallbacks.getStdout(), true);
-stdout.println("INFO : Hello, Burp Suite");
+// メソッド
+System.out.println("HttpRequest.getMethod() => "
+        + ((HttpRequest) httpObject).getMethod());
+        //=> GET
+
+// URI
+System.out.println("HttpRequest.getUri() => "
+        + ((HttpRequest) httpObject).getUri());
+        //=> http://example.com/
+
+// HTTPバージョン
+System.out.println("HttpRequest.getProtocolVersion() => "
+        + ((HttpRequest) httpObject).getProtocolVersion());
+        //=> HTTP/1.1
+
+// ヘッダー
+HttpHeaders httpHeaders = ((HttpRequest) httpObject).headers();
+List<Map.Entry<String,String>> headerList = httpHeaders.entries();
+for (Map.Entry<String, String> header : headerList){
+    System.out.println(header.getKey() + ": " + header.getValue());
+}
+// Host: example.comUser-Agent: curl/7.43.0
+// Accept: */*
+// Proxy-Connection: Keep-Alive
+// Content-Length: 0
+// Content-Length: 37
+// Content-Type: application/x-www-form-urlencoded
 ```
 </div>
 
-### 6. 「Errors」タブに表示
+#### HttpContentオブジェクトに用意されているメソッド
 
 <div class="md-code" style="width:100%">
 ```java
-// エラーメッセージを表示
-PrintWriter stderr = new PrintWriter(iBurpExtenderCallbacks.getStderr(), true);
-stderr.println("ERROR : Hello, Burp Suite");
-```
-</div>
-
-### 7. 例外メッセージを表示
-
-　例外メッセージはエラーと同じタブに表示されるようになっています。  
-[f:id:motikan2010:20180211204047p:plain]  
-
-<div class="md-code" style="width:100%">
-```java
-throw new RuntimeException("Burp Suite exceptions");
-```
-</div>
-
-### 8. 「アラート」タブに表示
-
-[f:id:motikan2010:20180211204103p:plain]  
-
-<div class="md-code" style="width:100%">
-```java
-iBurpExtenderCallbacks.issueAlert("Burp Suite Alerts");
-```
-</div>
-
-## コンパイル から プラグインの読み込み まで
-
-　最終的に完成したコードは下記の通りになります。  
-このファイルをコンパイル（ビルド）し、Burp Suite で読み込んで実行させます。  
-
-- BurpExtender.java
-<div class="md-code" style="width:100%">
-```java
-package burp;
-
-import java.io.PrintWriter;
-
-public class BurpExtender implements IBurpExtender {
-
-    public void registerExtenderCallbacks(IBurpExtenderCallbacks iBurpExtenderCallbacks) {
-        iBurpExtenderCallbacks.setExtensionName("Hello, Burp Suite");
-
-        PrintWriter stdout = new PrintWriter(iBurpExtenderCallbacks.getStdout(), true);
-        stdout.println("INFO : Hello, Burp Suite");
-
-        PrintWriter stderr = new PrintWriter(iBurpExtenderCallbacks.getStderr(), true);
-        stderr.println("ERROR : Hello, Burp Suite");
-
-        iBurpExtenderCallbacks.issueAlert("Burp Suite Alerts");
-
-        throw new RuntimeException("Burp Suite exceptions");
-    }
+if (httpObject instanceof HttpContent) {
+    HttpContent httpContent = (HttpContent) httpObject;
+    String resposeBody = httpContent.content().toString(Charset.defaultCharset());
+    System.out.println(resposeBody);
+    //=> testKey=testValue&testKey2=testValue2
 }
 ```
 </div>
 
-### プロジェクトの設定
+### プロキシ → サーバ 通信（proxyToServerRequest メソッド）
 
-・`File` > `Project Structure` > `Artifacts` > `From modules with dependencies...`
-[f:id:motikan2010:20180211204139p:plain]
+[f:id:motikan2010:20170725012101j:plain:w600]  
 
-・`OK`  
-[f:id:motikan2010:20180211204329p:plain]
+　「プロキシ」から「サーバ」へのリクエスト通信を取得できます。
 
-・`Apply` > `OK`  
-[f:id:motikan2010:20180211204720p:plain]
+<div class="md-code" style="width:100%">
+```java
+@Override
+public HttpResponse proxyToServerRequest(HttpObject httpObject) {
+  System.out.println("=== proxyToServerRequest ===");
+  if (httpObject instanceof HttpRequest) {
+    System.out.println(httpObject.toString());
+  }
+  return null;
+}
+```
+</div>
 
-### ビルド
+<div class="md-code" style="width:100%">
+```
+GET / HTTP/1.1
+Host: example.com
+User-Agent: curl/7.43.0
+Accept: */*
+Content-Length: 0
+Via: 1.1 XXXXX-no-MacBook-Pro.local
+```
+</div>
 
-・`Build` > `Build Artifacts`  
-[f:id:motikan2010:20180211204812p:plain]
+### プロキシ ← サーバ 通信（serverToProxyResponse メソッド）
 
-### 拡張プラグインの読込み
+[f:id:motikan2010:20170725012151j:plain:w600]  
 
-・`Extender タブ` > `Extensions タブ` > `Add ボタン`
-[f:id:motikan2010:20180211213544p:plain]
+　「サーバ」から「プロキシ」へのレスポンス通信を取得できます。
 
-・`Select file ...`
-[f:id:motikan2010:20180211213540p:plain]
+<div class="md-code" style="width:100%">
+```java
+@Override
+public HttpObject serverToProxyResponse(HttpObject httpObject) {
+  // レスポンスヘッダ
+  if (httpObject instanceof HttpResponse) {
+    HttpResponse httpResponse = (HttpResponse) httpObject;
+    System.out.println(httpResponse.toString());
+    System.out.println();
+  }
 
-　以上、「Hello, world!」拡張プラグインの作成と実行ができました。  
+  // レスポンスボディ
+  if (httpObject instanceof HttpContent) {
+    HttpContent httpContent = (HttpContent) httpObject;
+    String resposeBody = httpContent.content().toString(Charset.defaultCharset());
+    System.out.println(resposeBody);
+  }
+  return httpObject;
+}
+```
+</div>
 
-　次回は、Burp Suiteで取得した<span style="color: #ff0000">リクエストとレスポンスのヘッダ・ボディを表示する</span>拡張プラグインを作成していきます。  
-[https://blog.motikan2010.com/entry/2018/02/13/Burp_Suite%E3%81%AE%E6%8B%A1%E5%BC%B5%E3%82%92%E4%BD%9C%E6%88%90%E5%85%A5%E9%96%80_%E3%81%9D%E3%81%AE%EF%BC%92_-_%E3%83%AA%E3%82%AF%E3%82%A8%E3%82%B9%E3%83%88%26%E3%83%AC%E3%82%B9%E3%83%9D%E3%83%B3:embed:cite]
+<div class="md-code" style="width:100%">
+```
+HTTP/1.1 200 OK
+Cache-Control: max-age=604800
+Content-Type: text/html
+Date: Mon, 24 Jul 2017 14:01:08 GMT
+Etag: "359670651+ident"
+Expires: Mon, 31 Jul 2017 14:01:08 GMT
+Last-Modified: Fri, 09 Aug 2013 23:54:35 GMT
+Server: ECS (rhv/818F)
+Vary: Accept-Encoding
+X-Cache: HIT
+Content-Length: 1270
+
+<!doctype html>
+<html>
+<head>
+    <title>Example Domain</title>
+
+（中略）
+
+</div>
+</body>
+</html>
+```
+</div>
+
+#### HttpRequestオブジェクトに用意されているメソッド
+
+<div class="md-code" style="width:100%">
+```java
+System.out.println("HttpResponse.getProtocolVersion() => "
+        + ((HttpResponse) httpObject).getProtocolVersion());
+        //=> HTTP/1.1
+
+System.out.println("HttpResponse.getStatus() => "
+        + ((HttpResponse) httpObject).getStatus());
+        //=> 200 OK
+
+// ヘッダー
+HttpHeaders httpHeaders = ((HttpResponse) httpObject).headers();
+List<Map.Entry<String,String>> headerList = httpHeaders.entries();
+for (Map.Entry<String, String> header : headerList){
+    System.out.println(header.getKey() + ": " + header.getValue());
+}
+// Accept-Ranges: bytes
+// Cache-Control: max-age=604800
+// Content-Type: text/html
+// Date: Mon, 24 Jul 2017 15:16:04 GMT
+// Etag: "359670651"
+// Expires: Mon, 31 Jul 2017 15:16:04 GMT
+// Last-Modified: Fri, 09 Aug 2013 23:54:35 GMT
+// Server: EOS (lax004/2816)
+// Content-Length: 1270
+```
+</div>
+
+### クライアント ← プロキシ 通信（proxyToClientResponse メソッド）
+
+[f:id:motikan2010:20170725012125j:plain:w600]  
+
+　「プロキシ」から「クライアント」へのレスポンス通信を取得できます。
+
+<div class="md-code" style="width:100%">
+```java
+@Override
+public HttpObject proxyToClientResponse(HttpObject httpObject) {
+  // レスポンスヘッダ
+  if (httpObject instanceof HttpResponse) {
+    HttpResponse httpResponse = (HttpResponse) httpObject;
+    System.out.println(httpResponse.toString());
+    System.out.println();
+  }
+
+  // レスポンスボディ
+  if (httpObject instanceof HttpContent) {
+    HttpContent httpContent = (HttpContent) httpObject;
+    String resposeBody = httpContent.content().toString(Charset.defaultCharset());
+    System.out.println(resposeBody);
+  }
+  return httpObject;
+}
+```
+</div>
+
+<div class="md-code" style="width:100%">
+```
+HTTP/1.1 200 OK
+Cache-Control: max-age=604800
+Content-Type: text/html
+Date: Mon, 24 Jul 2017 14:01:08 GMT
+Etag: "359670651+ident"
+Expires: Mon, 31 Jul 2017 14:01:08 GMT
+Last-Modified: Fri, 09 Aug 2013 23:54:35 GMT
+Server: ECS (rhv/818F)
+Vary: Accept-Encoding
+X-Cache: HIT
+Content-Length: 1270
+Via: 1.1 XXXXX-no-MacBook-Pro.local
+
+<!doctype html>
+<html>
+<head>
+    <title>Example Domain</title>
+
+（中略）
+
+</body>
+</html>
+```
+</div>
+
+## プロキシでいろいろ
+
+### レスポンスボディの改ざん
+
+[https://github.com/MediumOne/littleproxy-example/blob/master/src/main/java/m1/learning/littleproxy/example/filters/ReplacePostContentFilterProxy.java:title]
+
+　プロキシの得意分野である、レスポンスボディの改ざん（リプレース）をやってみます。  
+「プロキシ」から「ブラウザ」に返されるレスポンスボディを「Example」から「motikan2010」へ文字列を置き換えています。
+
+<div class="md-code" style="width:100%">
+```java
+@Override
+public HttpObject proxyToClientResponse(HttpObject httpObject) {
+  if (httpObject instanceof FullHttpResponse) {
+      httpObject = doReplace((FullHttpResponse) httpObject);
+  }
+  return httpObject;
+}
+
+private FullHttpResponse doReplace(FullHttpResponse fullHttpResponse){
+
+  CompositeByteBuf contentBuf = (CompositeByteBuf) fullHttpResponse.content();
+
+  String contentStr = contentBuf.toString(CharsetUtil.UTF_8);
+  String newBody = contentStr.replace("Example", "motikan2010");
+
+  ByteBuf bodyContent = Unpooled.copiedBuffer(newBody, CharsetUtil.UTF_8);
+
+  contentBuf.clear().writeBytes(bodyContent);
+  HttpHeaders.setContentLength(fullHttpResponse, newBody.length());
+  return fullHttpResponse;
+}
+```
+</div>
+
+<div class="md-code" style="width:100%">
+```
+$ curl -x 127.0.0.1:8080 http://example.com <!doctype html>
+<html>
+<head>
+    <title>motikan2010 Domain</title>
+
+（中略）
+
+<body>
+<div>
+    <h1>motikan2010 Domain</h1>
+    <p>This domain is established to be used for illustrative examples in documents. You may use this
+    domain in examples without prior coordination or asking for permission.</p>
+    <p><a href="http://www.iana.org/domains/example">More information...</a></p>
+</div>
+</body>
+</html>
+```
+</div>
+
+### リクエストのブロック
+
+　プロキシはクライアントからの特定の通信をブロックするのも得意分野です。  
+試しに画像ファイルの取得リクエストの場合にエラーを返すようにしてみます。
+
+[https://github.com/MediumOne/littleproxy-example/blob/master/src/main/java/m1/learning/littleproxy/example/filters/BlockingFilterProxy.java:title]
+
+<div class="md-code" style="width:100%">
+```java
+@Override
+public HttpResponse clientToProxyRequest(HttpObject httpObject) {
+  if(httpObject instanceof  HttpRequest) {
+      HttpRequest request = (HttpRequest) httpObject;
+      if(request.getUri().endsWith("png") || request.getUri().endsWith("jpeg")){ // 画像ファイルの判定
+          return getBadGatewayResponse();
+      }
+  }
+
+  return null;
+}
+
+// エラーレスポンスの生成
+private HttpResponse getBadGatewayResponse() {
+  String body = "<!DOCTYPE HTML \"-//IETF//DTD HTML 2.0//EN\">\n"
+          + "<html><head>\n"
+          + "<title>"+"Bad Gateway"+"</title>\n"
+          + "</head><body>\n"
+          + "An error occurred"
+          + "</body></html>\n";
+  byte[] bytes = body.getBytes(Charset.forName("UTF-8"));
+  ByteBuf content = Unpooled.copiedBuffer(bytes);
+  HttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_GATEWAY, content);
+  response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, bytes.length);
+  response.headers().set("Content-Type", "text/html; charset=UTF-8");
+  response.headers().set("Date", ProxyUtils.formatDate(new Date()));
+  response.headers().set(HttpHeaders.Names.CONNECTION, "close");
+  return response;
+}
+```
+</div>
+
+<div class="md-code" style="width:100%">
+```
+$ curl -x 127.0.0.1:8080 http://hatenablog.com/images/touch/guide-app/apple-badge@2x.png -vv
+*   Trying 127.0.0.1...
+* Connected to 127.0.0.1 (127.0.0.1) port 8080 (#0)
+> GET http://hatenablog.com/images/touch/guide-app/apple-badge@2x.png HTTP/1.1
+> Host: hatenablog.com
+> User-Agent: curl/7.43.0
+> Accept: */*
+> Proxy-Connection: Keep-Alive
+>
+< HTTP/1.1 502 Bad Gateway
+< Content-Length: 130
+< Content-Type: text/html; charset=UTF-8
+< Date: Mon, 24 Jul 2017 16:04:17 GMT
+< Connection: close
+<
+<!DOCTYPE HTML "-//IETF//DTD HTML 2.0//EN">
+<html><head>
+<title>Bad Gateway</title>
+</head><body>
+An error occurred</body></html>
+* Closing connection 0
+```
+</div>
+
+## まとめ
+
+　意外にもJavaでフォワードプロキシ開発の情報が少なかった。  
+
+　FiddlerCoreが有名なこともあってか、C#にシェアが取られているのかな。
+そんなことも思いながらLittleProxyをさわってみましたが、想像していたより、十分な機能を持っていると思います。  
+
+　今回は試しておりませんが、SSLにも対応しているという情報もありましたので、次に試してみる。HTTPSの通信を取れないプロキシなんて・・。  
+Javaという利点を活かして最終的にはOWASP ZAPからコードを拝借して、SaaS型の診断ツールなんかを作ってみたい...。  
 
 ## 更新履歴
 
-- 2018年2月11日 新規作成
+- 2017年7月25日 新規作成
+- 2020年10月24日 「はじめに」を微修正

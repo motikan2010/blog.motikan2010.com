@@ -1,4 +1,4 @@
-<div style="text-align:center;">[f:id:motikan2010:20180211221846p:plain]</div>  
+<div style="text-align: center;">[f:id:motikan2010:20180120011546j:plain:w500]</div>  
 
 <div class="contents-box">
   <p>[:contents]</p>
@@ -6,250 +6,282 @@
 
 ## はじめに
 
-　Webアプリケーションのセキュリティを診断するツールとして、Burp Suiteが代表の１つとしてあり、拡張プラグインに頼らなくても標準の機能で多種類の診断を行うことができるほど多機能です。    
+　JSONのパース処理はいろんな場面で利用していますが、処理速度を意識して利用していなかった。  
+そこでJSONパーサーライブラリの処理速度を比べてみて、いざという時に備えておく。  
 
-　しかし、Webアプリケーションによっては遷移方法が特殊な場合がありは、拡張プラグインに頼らなくてはいけない場合もあります。  (値が更新されるCSRFトークンが存在する等)
+## 比べるライブラリは下記の2種類
 
-　そこで、Burp Siteでは**「BApp Store」に多くの人が開発した、拡張プラグインが公開されています。**  
+### Gson
 
-#### 拡張プラグインのストア「BApp Store」
+[f:id:motikan2010:20200324191247p:plain]
 
-　「BApp Store」で公開されている拡張プラグインで事足りるのであれば、独自に拡張プラグインを開発する必要はないと思っています。    
+[https://github.com/google/gson:embed:cite]
 
-[https://portswigger.net/bappstore:embed:cite]
+### Jackson
 
-　しかし、公開されている拡張プラグインで対応できない診断対象に対応するためにも、独自に拡張プラグインを作成し、**より妥協のないセキュリティ診断を行うため**にも拡張プラグインの開発方法を学習していきます。
+[f:id:motikan2010:20200324191243p:plain]
+
+[https://github.com/FasterXML/jackson:embed:cite]
+
+## 下記のパターン（特徴）で比較
+- ノーマル
+- Date型
+- 長い文字列
+- Date型 ×2
+- 大量のメンバ変数
+
+<span class="m-y">結果から言うと、Jacksonが優勢であった。</span>
 
 <!-- more -->
 
-　ユニークな拡張プラグインを開発を開発できたら、BApp Storeに公開するのもありだと思います。  
-　良い拡張プラグインを開発する際に気を付ける点は下記のブログにまとめられています。  
+## 処理速度の計測方法
 
-[http://blog.portswigger.net/2018/01/your-recipe-for-bapp-store-success.html:embed:cite]
-
-　今回は手始めに「Hello, world!」拡張プラグインを開発していきます。  
-拡張ということもあり、Burp Suiteにメインの処理は任せるようにし、送信するリクエストの加工や受信したレスポンスの検査等を拡張プラグインで行うようになっていくと考えています。
-
-## 開発環境
-
-　拡張プラグインは <span style="color: #ff0000">**Java・Ruby・Python で開発できます**</span>が、今回はJavaを用いて開発を行なっていきます。  
-
-今回作成するプロジェクトのリポジトリは下記になります。
-
-[https://github.com/motikan2010/Burp-Suite-Learning-Chapter01:title]
-
-　私の開発環境は以下のようになっています。  
-
-| | |
-|-|-|
-| OS | macOS 10.12 Sierra |
-| プログラム言語 | Java8 |
-| ビルドツール | Maven |
-| IDE | IntelliJ IDEA |
-
-## 実装
-
-### 1. ディレクトリ構造
-
-　最終的なディレクトリ構造は下記のようになります。
-
-<div class="md-code" style="width:100%">
-```
-.
-├── pom.xml
-└── src
-    └── main
-        └── java
-            └── burp
-                └── BurpExtender.java
-```
-</div>
-
-### 2. Burp拡張ライブラリ(Burp Extender API)の取得
-
-[https://mvnrepository.com/artifact/net.portswigger.burp.extender/burp-extender-api:title]
-
-　Burp Extender API は "Maven Repository" に登録されており、`pom.xml`ファイルを編集することで導入することができます。
-
-#### pom.xml の編集
-
-<div class="md-code" style="width:100%">
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-
-  <groupId>com.motikan2010</groupId>
-  <artifactId>burplearning</artifactId>
-  <version>1.0-SNAPSHOT</version>
-
-  <dependencies>
-    <!-- https://mvnrepository.com/artifact/net.portswigger.burp.extender/burp-extender-api -->
-    <dependency>
-      <groupId>net.portswigger.burp.extender</groupId>
-      <artifactId>burp-extender-api</artifactId>
-      <version>1.7.22</version>
-    </dependency>
-  </dependencies>
-</project>
-```
-</div>
-
-### 3. Javaファイルの作成
-
-　最初はライブラリ読込み時に実行されるコードを書いていきます。  
-
-　Burp拡張プラグインは、Javaでよく見られる mainメソッド から実行ではありません。  
-
-　下記の条件に合致するクラスを作成します。  
-
-- パッケージが <span style="color: #ff0000">burp</span> に属している
-- クラス名が <span style="color: #ff0000">BurpExtender</span>
-- インターフェース <span style="color: #ff0000">IBurpExtender</span> を実装
-
-　実行コードは、<b>registerExtenderCallbacksメソッド</b>内に書いていきます。
-
-- BurpExtender.java  
-<div class="md-code" style="width:100%">
+<div class="sm-code">
 ```java
-package burp;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
-import java.io.PrintWriter;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
-public class BurpExtender implements IBurpExtender {
+public class SampleApplication {
 
-    public void registerExtenderCallbacks(IBurpExtenderCallbacks iBurpExtenderCallbacks) {
-        // ここにコードを書いていく
+    public static void main(String[] args) throws Exception{
+        // 1. 30万含んだユーザリストを作成
+        List<User> userList = new ArrayList<>();
+        for (int i=0; i < 300_000; i++) {
+            userList.add(new User1("firstName", "lastName"));
+        }
+
+        // 2. ユーザリストをJSONテキストに変換
+        String jsonString = null;
+        for (int i=0; i < 5;i++) {
+            Instant createStart = Instant.now();
+            jsonString = createJson(userList);
+            System.out.println("Create JSON : " + Duration.between(createStart, Instant.now()).toNanos() / 1000000.0 + " [ms]");
+        }
+
+        // 3. JSONテキストからユーザリストを復元
+        for (int i=0; i < 5;i++) {
+            Instant parseStart = Instant.now();
+            User user = parseJson(jsonString);
+            System.out.println("Parse  JSON : " + Duration.between(parseStart, Instant.now()).toNanos() / 1000000.0 + " [ms]");
+        }
     }
 }
 ```
 </div>
 
-　この記事では下記を学んでいきます。  
+　それぞれのパース処理の内容は以下のようになっています。
 
-- プラグイン名の設定と表示
-- 「Output」タブに標準メッセージの表示
-- 「Error」タブにエラーメッセージの表示、例外メッセージの表示
-- 「アラート」タブにメッセージの表示
+### "Gson"を使ったJSON文字列の作成・解析
 
-### 4. プラグインに名前を付ける
-
-[f:id:motikan2010:20180211204005p:plain]  
-
-　`Name列`の値を指定できます。  
-
-<div class="md-code" style="width:100%">
+<div class="sm-code">
 ```java
-// 拡張プラグインの命名
-iBurpExtenderCallbacks.setExtensionName("Hello, Burp Suite");
-```
-</div>
+private static String createJson (List<User> userList) {
+    Gson gson = new Gson();
+    String json = gson.toJson(userList);
+    return json;
+}
 
-### 5. 「Output」タブに表示
-
-[f:id:motikan2010:20180211204024p:plain]  
-
-<div class="md-code" style="width:100%">
-```java
-// メッセージを表示
-PrintWriter stdout = new PrintWriter(iBurpExtenderCallbacks.getStdout(), true);
-stdout.println("INFO : Hello, Burp Suite");
-```
-</div>
-
-### 6. 「Errors」タブに表示
-
-<div class="md-code" style="width:100%">
-```java
-// エラーメッセージを表示
-PrintWriter stderr = new PrintWriter(iBurpExtenderCallbacks.getStderr(), true);
-stderr.println("ERROR : Hello, Burp Suite");
-```
-</div>
-
-### 7. 例外メッセージを表示
-
-　例外メッセージはエラーと同じタブに表示されるようになっています。  
-[f:id:motikan2010:20180211204047p:plain]  
-
-<div class="md-code" style="width:100%">
-```java
-throw new RuntimeException("Burp Suite exceptions");
-```
-</div>
-
-### 8. 「アラート」タブに表示
-
-[f:id:motikan2010:20180211204103p:plain]  
-
-<div class="md-code" style="width:100%">
-```java
-iBurpExtenderCallbacks.issueAlert("Burp Suite Alerts");
-```
-</div>
-
-## コンパイル から プラグインの読み込み まで
-
-　最終的に完成したコードは下記の通りになります。  
-このファイルをコンパイル（ビルド）し、Burp Suite で読み込んで実行させます。  
-
-- BurpExtender.java
-<div class="md-code" style="width:100%">
-```java
-package burp;
-
-import java.io.PrintWriter;
-
-public class BurpExtender implements IBurpExtender {
-
-    public void registerExtenderCallbacks(IBurpExtenderCallbacks iBurpExtenderCallbacks) {
-        iBurpExtenderCallbacks.setExtensionName("Hello, Burp Suite");
-
-        PrintWriter stdout = new PrintWriter(iBurpExtenderCallbacks.getStdout(), true);
-        stdout.println("INFO : Hello, Burp Suite");
-
-        PrintWriter stderr = new PrintWriter(iBurpExtenderCallbacks.getStderr(), true);
-        stderr.println("ERROR : Hello, Burp Suite");
-
-        iBurpExtenderCallbacks.issueAlert("Burp Suite Alerts");
-
-        throw new RuntimeException("Burp Suite exceptions");
-    }
+private static User parseJson (String json) {
+    Gson gson = new Gson();
+    List<User> userList = gson.fromJson(json, new TypeToken<List<User1>>(){}.getType());
+    return userList.get(0);
 }
 ```
 </div>
 
-### プロジェクトの設定
+### "Jackson"を使ったJSON文字列の作成・解析
 
-・`File` > `Project Structure` > `Artifacts` > `From modules with dependencies...`
-[f:id:motikan2010:20180211204139p:plain]
+<div class="sm-code">
+```java
+private static String createJson (List<User> userList) throws Exception{
+    ObjectMapper objectMapper = new ObjectMapper();
+    String json = objectMapper.writeValueAsString(userList);
+    return json;
+}
 
-・`OK`  
-[f:id:motikan2010:20180211204329p:plain]
+private static User parseJson (String json) throws Exception {
+    ObjectMapper objectMapper = new ObjectMapper();
+    List<User> userList = objectMapper.readValue(json, new TypeReference<List<User1>>(){});
+    return userList.get(0);
+}
+```
+</div>
 
-・`Apply` > `OK`  
-[f:id:motikan2010:20180211204720p:plain]
+　Userクラスの中身は以下のようになっており、**メンバ変数の個数**や**データ型**を変えていき、処理速度に影響しているかを確認していきます。  
 
-### ビルド
+<div class="sm-code">
+```java
+@Data
+@AllArgsConstructor
+public class User1 implements User {
 
-・`Build` > `Build Artifacts`  
-[f:id:motikan2010:20180211204812p:plain]
+    private String firstName;
 
-### 拡張プラグインの読込み
+    private String lastName;
+}
+```
+</div>
 
-・`Extender タブ` > `Extensions タブ` > `Add ボタン`
-[f:id:motikan2010:20180211213544p:plain]
+### ノーマル
 
-・`Select file ...`
-[f:id:motikan2010:20180211213540p:plain]
+||データ型|値|
+|-|-|-|
+|第1引数|String|firstName|
+|第2引数|String|lastName|
 
-　以上、「Hello, world!」拡張プラグインの作成と実行ができました。  
+　JSON文字列・オブジェクトの変換処理はそれぞれ5回行い、処理毎に早くなっているが分かる。  
+　だが2つの処理速度に大差は感じられない。
 
-　次回は、Burp Suiteで取得した<span style="color: #ff0000">リクエストとレスポンスのヘッダ・ボディを表示する</span>拡張プラグインを作成していきます。  
-[https://blog.motikan2010.com/entry/2018/02/13/Burp_Suite%E3%81%AE%E6%8B%A1%E5%BC%B5%E3%82%92%E4%BD%9C%E6%88%90%E5%85%A5%E9%96%80_%E3%81%9D%E3%81%AE%EF%BC%92_-_%E3%83%AA%E3%82%AF%E3%82%A8%E3%82%B9%E3%83%88%26%E3%83%AC%E3%82%B9%E3%83%9D%E3%83%B3:embed:cite]
+#### インスタンス → JSON
 
-## 更新履歴
+||Gson|Jackson|
+|-|-|-|
+|1回目|1082 ms|968 ms|
+|2回目|697 ms|512 ms|
+|3回目|665 ms|144 ms|
+|4回目|349 ms|150 ms|
+|5回目|324 ms|205 ms|
 
-- 2018年2月11日 新規作成
+#### JSON → インスタンス
+
+||Gson|Jackson|
+|-|-|-|
+|1回目|293 ms|386 ms|
+|2回目|164 ms|160 ms|
+|3回目|159 ms|104 ms|
+|4回目|175 ms|132 ms|
+|5回目|140 ms|101 ms|
+
+### 特徴 : Date型
+
+　メンバ変数にDate型を加えてパース処理を実施。
+||データ型|値|
+|-|-|-|
+|第1引数|String|firstName|
+|第2引数|String|lastName|
+|第3引数|Date|new Date()|
+
+　ここで処理速度に差が生じてきた。
+Gsonは**Date型の変換が苦手**なのか、著しく処理が遅くなった事が確認できる。
+
+#### オブジェクト → JSON文字列
+
+||Gson|Jackson|
+|-|-|-|
+|1回目|<span style="color: #ff0000">2356</span> ms|<span style="color: #2196f3">1141</span> ms|
+|2回目|1101 ms|618 ms|
+|3回目|793 ms|277 ms|
+|4回目|606 ms|180 ms|
+|5回目|431 ms|253 ms|
+
+#### JSON文字列 → オブジェクト
+
+||Gson|Jackson|
+|-|-|-|
+|1回目|<span style="color: #ff0000">3845</span> ms|<span style="color: #2196f3">388</span> ms|
+|2回目|3007 ms|193 ms|
+|3回目|2928 ms|169 ms|
+|4回目|2847 ms|163 ms|
+|5回目|2823 ms|176 ms|
+
+### 特徴 : 長い文字列
+||データ型|値|
+|-|-|-|
+|第1引数|String|firstName|
+|第2引数|String|lastName|
+|第3引数|String|(500文字)|
+
+　Jacksonが相変わらず早いが、先の例ほどは差がなく、文字長はそこまで処理時間に関係なさそう。
+
+#### オブジェクト → JSON文字列
+
+||Gson|Jackson|
+|-|-|-|
+|1回目|2578 ms|2247 ms|
+|2回目|1833 ms|964 ms|
+|3回目|1379 ms|860 ms|
+|4回目|1315 ms|836 ms|
+|5回目|1251 ms|768 ms|
+
+#### JSON文字列 → オブジェクト
+
+||Gson|Jackson|
+|-|-|-|
+|1回目|1354 ms|742 ms|
+|2回目|666 ms|445 ms|
+|3回目|990 ms|687 ms|
+|4回目|873 ms|521 ms|
+|5回目|963 ms|609 ms|
+
+ちなみに、第３引数に600文字を指定して実行すると、"OutOfMemoryError"になった。
+
+### 特徴 : Date型 ×2
+
+||データ型|値|
+|-|-|-|
+|第1引数|String|firstName|
+|第2引数|String|lastName|
+|第3引数|Date|new Date()|
+|第4引数|Date|new Date()|
+
+#### オブジェクト → JSON文字列
+
+||Gson|Jackson|
+|-|-|-|
+|1回目|2925 ms|989 ms|
+|2回目|1477 ms|767 ms|
+|3回目|840 ms|384 ms|
+|4回目|842 ms|324 ms|
+|5回目|877 ms|150 ms|
+
+#### JSON文字列 → オブジェクト
+
+||Gson|Jackson|
+|-|-|-|
+|1回目|6182 ms|538 ms|
+|2回目|5400 ms|359 ms|
+|3回目|5429 ms|201 ms|
+|4回目|5378 ms|212 ms|
+|5回目|5447 ms|202 ms|
+
+### 特徴 : 大量のメンバ変数
+
+||データ型|値|
+|-|-|-|
+|第1引数|String|SampleText|
+|第2引数|String|SampleText|
+|第3引数|String|SampleText|
+|第4引数|String|SampleText|
+|||(以下略)|
+|第30引数|String|SampleText|
+
+　ここにきてGsonの強みが確認された。  
+gsonは処理を終えることができたが、<span class="m-y">Jacksonの場合「オブジェクト → JSON文字列」の処理で"OutOfMemoryError"</span>となった。
+
+#### オブジェクト → JSON文字列
+
+||Gson|Jackson|
+|-|-|-|
+|1回目|5338 ms|3503 ms|
+|2回目|5237 ms|- ms|
+|3回目|2868 ms|- ms|
+|4回目|2744 ms|- ms|
+|5回目|2555 ms|- ms|
+
+#### JSON文字列 → オブジェクト
+
+||Gson|Jackson|
+|-|-|-|
+|1回目|4633 ms|4854 ms|
+|2回目|4089 ms|5163 ms|
+|3回目|2629 ms|3910 ms|
+|4回目|5575 ms|2939 ms|
+|5回目|3798 ms|2981 ms|

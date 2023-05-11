@@ -1,201 +1,59 @@
-<div style="text-align:center;">[f:id:motikan2010:20170514015521p:plain:w500]</div>
-
-<div class="contents-box">
-  <p>[:contents]</p>
-</div>
+<div class="contents-box"><p>[:contents]</p></div>
 
 ## はじめに
 
-　前回に引き続き「jwt-go」でいろいろ試してみます。  
-今回は<span class="m-y">署名アルゴリズムを改ざんして送信</span>したときの挙動を確認していきます。  
+　「"通信を発生させずにHTMLを解析"をしたい・・・」という要望があったので執筆。
 
-[http://motikan2010.hatenadiary.com/entry/2017/05/12/jwt-go%E3%82%92%E4%BD%BF%E3%81%A3%E3%81%A6%E3%81%BF%E3%82%8B:embed:cite]  
+　今までPHPでHTML解析するときは「Simple HTML DOM Parser」を利用しており、数年ぶりの利用で使い方を確認していると下記のような記事がありました。  
+[http://localdisk.hatenablog.com/entry/2014/02/05/%E3%81%9D%E3%82%8D%E3%81%9D%E3%82%8D_Simple_HTML_DOM_Parser_%E3%82%92%E4%BD%BF%E3%81%86%E3%81%AE%E3%81%AF%E3%82%84%E3%82%81%E3%81%9F%E3%81%BB%E3%81%86%E3%81%8C%E3%81%84%E3%81%84:embed:cite]
 
-## 動作確認
 
-### 署名アルゴリズムを改ざん
+「Simple HTML DOM Parser」はパフォーマンス面に優れておらず、今では「Goutte」を使った方がいいとか。  
 
-　なぜこんなことを試すのかというと、<span class="m-y">トークン内の署名アルゴリズムを改ざんしてリクエストを送信したときに改ざん後の署名アルゴリズムで署名の検証が行われる</span>実装があるようです。  
-  
-　詳しくは下記の記事を参照下さい。
 
-[http://oauth.jp/blog/2015/03/16/common-jws-implementation-vulnerability/:embed:cite]  
-
-　jwt-goでは署名アルゴリズムを改竄して送信したときにどのような動作をするのかを確認していきます。  
-
-[f:id:motikan2010:20170514014545j:plain]  
+[https://github.com/FriendsOfPHP/Goutte:embed:cite]
 
 <!-- more -->
 
-　確認に使うソースコードは前回と同様です。  
 
-[https://github.com/motikan/jwt-go_Sample/blob/master/main.go:title]  
+　いざ「Goutte」の使い方を簡単に調べてみると「Simple HTML DOM Parser」のようにHTML文字列を引数に与えて解析対象のオブジェクトを作成することができなさそう。    
 
-#### ① トークンを取得
+- Simple HTML DOM Parser
 
-<div class="md-code" style="width:100%">
+```php
+// Simple HTML DOM Parserを使った文字列からオブジェクトを生成
+$html = str_get_html( '<html><body>Hello!</body></html>' );
 ```
-$ curl -v http://example.jp:8080/api/
-GET /api/ HTTP/1.1
-Host: example.jp:8080
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 14:18:34 GMT
-Content-Length: 144
-
-{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.iTEWurGMvi1d90yMW0OnqbQ0QDEyB-UD4TmYF9YQXYY"}
+- Goutte  
+オブジェクトを生成するためにはリクエスト通信を発生させないといけなさそう。
+```php
+<?php
+$client = new Client();
+$crawler = $client->request('GET', 'https://www.symfony.com/blog/');
+// 通信で取得したオブジェクトが解析対象になる
 ```
-</div>
 
-　トークンヘッダの署名アルゴリスムを改ざんします。
+## 通信を発生させずにHTMLを解析
 
-|||bsae64エンコード|
-|-|-|-|
-|改ざん前|{"alg":"HS256","typ":"JWT"}|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9|
-|改ざん後|{"alg":"none","typ":"JWT"}|eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K|
+　Goutteでもファイル内に記載されているHTMLを解析できそう。
 
-#### ② 署名アルゴリズムを"none"に改ざんしてリクエストを送信
+[http://ja.stackoverflow.com/questions/17366/goutte%E3%81%A7http%E3%83%AA%E3%82%AF%E3%82%A8%E3%82%B9%E3%83%88%E3%81%AA%E3%81%97%E3%81%AB%E6%96%87%E5%AD%97%E5%88%97%E3%81%8B%E3%82%89%E3%82%B9%E3%82%AF%E3%83%AC%E3%82%A4%E3%83%97%E3%81%99%E3%82%8B%E6%96%B9%E6%B3%95:embed:cite]
 
-<div class="md-code" style="width:100%">
+
+　下記のコードで通信を発生せずに引数に与えたHTML文字列を解析することができます。  
+```php
+<?php
+
+use Symfony\Component\DomCrawler\Crawler;
+
+$crawler = new Crawler(null);
+
+// addHtmlContentの引数にHTML文字列
+$crawler->addHtmlContent('<html><body>Hello!</body></html>');
+
+echo $crawler->filter('html')->html();
+//=> <body>Hello!</body>
+
+echo $crawler->filter('body')->text();
+//=> Hello!
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ."
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.
-
-HTTP/1.1 401 Unauthorized
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 14:30:26 GMT
-Content-Length: 49
-
-{"error":"'none' signature type is not allowed"}
-```
-</div>
-
-　ステータスコードは「401 Unauthorized」、レスポンスボディに「`'none' signature type is not allowed`」とある通り、
-改ざん後の署名アルゴリズムが適用されず、<span style="color: #d32f2f">署名の検証には失敗しました</span>。  
-[f:id:motikan2010:20170514014735j:plain]  
-
-### トークン発行時「SHA256」、検証には「none」
-
-　"none"にするため、ソースコードの下記の部分を変更します。
-
-<div class="md-code" style="width:100%">
-```go
-/*
-   署名の検証
-*/
-token, err := request.ParseFromRequest(c.Request, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
-	//b := []byte(secretKey)
-	b := jwt.UnsafeAllowNoneSignatureType
-	return b, nil
-})
-```
-</div>
-
-[f:id:motikan2010:20170514015036j:plain]  
-
-#### 署名アルゴリズムを"none"に改ざんしてリクエストを送信
-
-<div class="md-code" style="width:100%">
-```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ."
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 15:46:04 GMT
-Content-Length: 56
-
-{"message":"こんにちは、「 ゲスト 」さん"}
-```
-</div>
-
-　署名の検証が行われていないことがわかる。  
-
-#### おまけ
-
-　ちなみに署名アルゴリズムを<b>noneに指定した状態で、シグネチャを付与</b>しリクエストを送信した場合は、以下のようなエラーになりました。
-
-||base64エンコード|
-|-|-|
-|{"alg":"none","typ":"JWT"}|eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K|
-
-<div class="md-code" style="width:100%">
-```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.SetZ6qLSbfIObsaZSNGS4hVh5h8ob0Kr4h1fJGA75-s"
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.SetZ6qLSbfIObsaZSNGS4hVh5h8ob0Kr4h1fJGA75-s
-
-HTTP/1.1 401 Unauthorized
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:11:03 GMT
-Content-Length: 59
-
-{"error":"'none' signing method with non-empty signature"}
-```
-</div>
-
-　"none"を指定した場合はシグネチャを付与するなと怒られました。
-
-### トークン発行時「none」、検証には「SHA256」
-
-[f:id:motikan2010:20170514014808j:plain]  
-
-#### ① トークンを取得
-
-<div class="md-code" style="width:100%">
-```
-$ curl -v http://example.jp:8080/api/
-GET /api/ HTTP/1.1
-Host: example.jp:8080
-User-Agent: curl/7.43.0
-Accept: */*
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:18:49 GMT
-Content-Length: 100
-
-{"token":"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ."}
-```
-</div>
-
-#### ② 受信したトークンを取得
-
-<div class="md-code" style="width:100%">
-```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ."
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ.
-
-HTTP/1.1 401 Unauthorized
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:21:08 GMT
-Content-Length: 49
-
-{"error":"'none' signature type is not allowed"}
-```
-</div>
-　エラーになりました。  
-
-トークンの発行時に署名アルゴリズムに"none"が指定されたというのは、検証時には関係ありませんでした。  
-
-
-<b>結論: 検証は検証時に使用する署名アルゴリズムに依存するようです。</b>
-<b>(noneは指定するな。指定するための「UnsafeAllowNoneSignatureType」というワードはいかにも怪しいが・・・。)</b>  
-
-おわり🏠  
-
-<hr>
-
-　次はもっとセキュリティ色の強い記事を書きたい...。
-
-## 更新履歴
-
-- 2017年5月14日 新規作成

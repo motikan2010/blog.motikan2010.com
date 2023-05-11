@@ -1,201 +1,283 @@
-<div style="text-align:center;">[f:id:motikan2010:20170514015521p:plain:w500]</div>
+[f:id:motikan2010:20170421183808p:plain]
 
-<div class="contents-box">
-  <p>[:contents]</p>
-</div>
+[https://github.com/nsarno/knock:embed:cite]
 
-## はじめに
 
-　前回に引き続き「jwt-go」でいろいろ試してみます。  
-今回は<span class="m-y">署名アルゴリズムを改ざんして送信</span>したときの挙動を確認していきます。  
 
-[http://motikan2010.hatenadiary.com/entry/2017/05/12/jwt-go%E3%82%92%E4%BD%BF%E3%81%A3%E3%81%A6%E3%81%BF%E3%82%8B:embed:cite]  
+JSON Web Tokenの説明は下記の記事を参照。
+[http://qiita.com/kaiinui/items/21ec7cc8a1130a1a103a:embed:cite]
 
-## 動作確認
 
-### 署名アルゴリズムを改ざん
-
-　なぜこんなことを試すのかというと、<span class="m-y">トークン内の署名アルゴリズムを改ざんしてリクエストを送信したときに改ざん後の署名アルゴリズムで署名の検証が行われる</span>実装があるようです。  
-  
-　詳しくは下記の記事を参照下さい。
-
-[http://oauth.jp/blog/2015/03/16/common-jws-implementation-vulnerability/:embed:cite]  
-
-　jwt-goでは署名アルゴリズムを改竄して送信したときにどのような動作をするのかを確認していきます。  
-
-[f:id:motikan2010:20170514014545j:plain]  
 
 <!-- more -->
 
-　確認に使うソースコードは前回と同様です。  
 
-[https://github.com/motikan/jwt-go_Sample/blob/master/main.go:title]  
 
-#### ① トークンを取得
+[:contents]  
 
-<div class="md-code" style="width:100%">
+## 事前準備
+### 新規アプリを生成
+
 ```
-$ curl -v http://example.jp:8080/api/
-GET /api/ HTTP/1.1
-Host: example.jp:8080
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 14:18:34 GMT
-Content-Length: 144
-
-{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.iTEWurGMvi1d90yMW0OnqbQ0QDEyB-UD4TmYF9YQXYY"}
+$ rails new railsJWT --api
 ```
-</div>
-
-　トークンヘッダの署名アルゴリスムを改ざんします。
-
-|||bsae64エンコード|
-|-|-|-|
-|改ざん前|{"alg":"HS256","typ":"JWT"}|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9|
-|改ざん後|{"alg":"none","typ":"JWT"}|eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K|
-
-#### ② 署名アルゴリズムを"none"に改ざんしてリクエストを送信
-
-<div class="md-code" style="width:100%">
+### Gemfileに追記
+必要なライブラリをGemfileに追記します。
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ."
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.
+$ vim Gemfile
 
-HTTP/1.1 401 Unauthorized
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 14:30:26 GMT
-Content-Length: 49
+# 下記を追記
+gem "faker"
+gem "bcrypt"
+gem "jsonapi-resources"
+gem "knock"
 
-{"error":"'none' signature type is not allowed"}
+$ bundle install
 ```
-</div>
 
-　ステータスコードは「401 Unauthorized」、レスポンスボディに「`'none' signature type is not allowed`」とある通り、
-改ざん後の署名アルゴリズムが適用されず、<span style="color: #d32f2f">署名の検証には失敗しました</span>。  
-[f:id:motikan2010:20170514014735j:plain]  
 
-### トークン発行時「SHA256」、検証には「none」
+[https://github.com/cerebris/jsonapi-resources:title]
 
-　"none"にするため、ソースコードの下記の部分を変更します。
 
-<div class="md-code" style="width:100%">
-```go
-/*
-   署名の検証
-*/
-token, err := request.ParseFromRequest(c.Request, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
-	//b := []byte(secretKey)
-	b := jwt.UnsafeAllowNoneSignatureType
-	return b, nil
+
+## モデルの作成
+### Postモデル
+「タイトル」「内容」「公開/非公開の指定」のカラムを保持したPostモデルを作成します。
+```
+$ rails g model Post title:string body:text type:string
+```
+
+```
+$ touch app/models/private_post.rb
+$ touch app/models/public_post.rb
+```
+
+```ruby
+$ vim app/models/private_post.rb
+
+class PrivatePost < Post
+end
+
+$ vim app/models/public_post.rb
+
+class PublicPost < Post
+end
+```
+
+```ruby
+$ vim app/models/post.rb
+
+class Post < ApplicationRecord
+  validates :body, presence: true
+  validates :title, presence: true
+  validates :type, presence: true
+
+  POST_TYPES = %w(PublicPost PrivatePost)
+  validates :type, :inclusion => { :in => POST_TYPES }
+end
+```
+### Userモデル
+次に「パスワード」「名前」「メールアドレス」のカラムを保持したUserモデルを作成します。
+```
+$ rails g model user password_digest:string name:string email:string
+```
+```ruby
+$ vim app/models/user.rb
+
+class User < ActiveRecord::Base
+  has_secure_password
+
+  validates :name, presence: true
+  validates :email, presence: true
+end
+```
+```
+$ rails db:migrate
+```
+
+### テストデータの追加
+```ruby
+$ vim db/seeds.rb
+
+Post.destroy_all
+User.destroy_all
+
+# ユーザを作成
+User.create!({
+  name: 'User1',
+  email: 'user1@example.com',
+  password: 'passwd1',
+  password_confirmation: 'passwd1'
 })
+
+User.create!({
+  name: 'User2',
+  email: 'user2@example.com',
+  password: 'passwd2',
+  password_confirmation: 'passwd2'
+})
+
+3.times do
+  # 公開記事を作成
+  PublicPost.create!(
+    title: Faker::Lorem.sentence,
+    body: Faker::Lorem.paragraphs.join(' ')
+  )
+
+  # 非公開記事を作成
+  PrivatePost.create!(
+    title: Faker::Lorem.sentence,
+    body: Faker::Lorem.paragraphs.join(' ')
+  )
+end
 ```
-</div>
-
-[f:id:motikan2010:20170514015036j:plain]  
-
-#### 署名アルゴリズムを"none"に改ざんしてリクエストを送信
-
-<div class="md-code" style="width:100%">
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ."
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.
+$ rails db:seed
+```
+## コントローラの作成
+### PublicPostsコントローラ
+```ruby
+$ vim app/controllers/application_controller.rb
+
+class ApplicationController < ActionController::API
+  include Knock::Authenticable # 追記
+end
+```
+
+```ruby
+$ rails g controller PublicPosts
+$ vim vim app/controllers/public_posts_controller.rb
+
+class PublicPostsController < ApplicationController
+  include JSONAPI::ActsAsResourceController # 追記
+end
+```
+
+```ruby
+$ rails generate jsonapi:resource public_posts
+$ vim app/resources/public_post_resource.rb
+
+class PublicPostResource < JSONAPI::Resource
+  immutable
+  attributes :title, :body
+end
+```
+#### ルーティング設定
+```
+$ vim config/routes.rb
+
+jsonapi_resources :public_posts # 追記
+```
+
+### PrivatePostsコントローラ
+```
+$ rails generate knock:install
+```
+```
+$ rails generate knock:token_controller user
+```
+「**before_action :authenticate_user**」を追記することによって、認証が必要なコントローラにすることができます。
+```ruby
+$ rails g controller PrivatePosts
+$ vim app/controllers/private_posts_controller.rb
+
+class PrivatePostsController < ApplicationController
+  include JSONAPI::ActsAsResourceController # 追記
+  before_action :authenticate_user # 追記
+end
+```
+
+```ruby
+$ rails generate jsonapi:resource private_posts
+$ vim app/resources/private_post_resource.rb
+
+class PrivatePostResource < JSONAPI::Resource
+  immutable
+  attributes :title, :body
+end
+```
+#### ルーティング設定
+```ruby
+$ vim config/routes.rb
+
+jsonapi_resources :private_posts
+```
+## 動作確認
+### リクエスト
+#### "/public-posts"にアクセス
+認証を行わずにアクセスすることが可能です。
+```
+$ curl -X "GET" "http://example.jp:3000/public-posts"
 
 HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 15:46:04 GMT
-Content-Length: 56
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+X-Content-Type-Options: nosniff
+Content-Type: application/vnd.api+json
+ETag: W/"ae93de1833f5e081219472e78b408c0a"
+Cache-Control: max-age=0, private, must-revalidate
+X-Request-Id: a0b4df38-9374-4801-97c3-714599305b00
+X-Runtime: 0.010128
+Transfer-Encoding: chunked
 
-{"message":"こんにちは、「 ゲスト 」さん"}
+{"data":[{"id":"1","type":"public-posts","links":{"self":"http://example.jp:3000/public-posts/1"},"attributes":{"title":"Necessitatibus et sit alias.","body":"Numquam...（中略）..."}}]}%
 ```
-</div>
 
-　署名の検証が行われていないことがわかる。  
-
-#### おまけ
-
-　ちなみに署名アルゴリズムを<b>noneに指定した状態で、シグネチャを付与</b>しリクエストを送信した場合は、以下のようなエラーになりました。
-
-||base64エンコード|
-|-|-|
-|{"alg":"none","typ":"JWT"}|eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K|
-
-<div class="md-code" style="width:100%">
+#### "/private-posts"にアクセス
+レスポンスで「**HTTP/1.1 401 Unauthorized**」と返ってきており、認証が必要ということが分かります。
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.SetZ6qLSbfIObsaZSNGS4hVh5h8ob0Kr4h1fJGA75-s"
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.SetZ6qLSbfIObsaZSNGS4hVh5h8ob0Kr4h1fJGA75-s
+$ curl -X "GET" "http://example.jp:3000/private-posts"
 
 HTTP/1.1 401 Unauthorized
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:11:03 GMT
-Content-Length: 59
-
-{"error":"'none' signing method with non-empty signature"}
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+X-Content-Type-Options: nosniff
+Content-Type: text/html
+Cache-Control: no-cache
+X-Request-Id: 7cde37bd-abdd-421f-a6dc-5667e8cce0d0
+X-Runtime: 0.002747
+Transfer-Encoding: chunked
 ```
-</div>
 
-　"none"を指定した場合はシグネチャを付与するなと怒られました。
-
-### トークン発行時「none」、検証には「SHA256」
-
-[f:id:motikan2010:20170514014808j:plain]  
-
-#### ① トークンを取得
-
-<div class="md-code" style="width:100%">
+### 認証を行う
+"/private-posts"に対してアクセスを行うためには、認証後に発行されるトークンをリクエストに含める必要があります。
+#### トークンを取得する認証リクエスト
 ```
-$ curl -v http://example.jp:8080/api/
-GET /api/ HTTP/1.1
-Host: example.jp:8080
+$ curl -X "POST" "http://nuconuco.com:3000/user_token" \
+> -H "Content-Type: application/json" \
+> -d '{"auth": {"email": "user1@example.com", "password": "passwd1"}}'
+
+{"jwt":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE0OTI4MTY4MzYsInN1YiI6NX0.EzBo2BZatWc-80HAfioQYbL1gPH90tf9YV00yAnHBr8"}%
+```
+JSON形式で返ってきている「eyJ0eXAiOiJKV1QiL・・・」が認証トークンです。
+
+#### トークンを使用してアクセス
+Authorizationヘッダの値に取得したトークンを指定します。
+```
+$ curl -X "GET" "http://example.jp:3000/private-posts" \
+> -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE0OTI4MTY4MzYsInN1YiI6NX0.EzBo2BZatWc-80HAfioQYbL1gPH90tf9YV00yAnHBr8" \
+> -H "Content-Type: application/json"
+
+GET /private-posts HTTP/1.1
+Host: example.jp:3000
 User-Agent: curl/7.43.0
 Accept: */*
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE0OTI4MTY4MzYsInN1YiI6NX0.EzBo2BZatWc-80HAfioQYbL1gPH90tf9YV00yAnHBr8
+Content-Type: application/json
 
 HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:18:49 GMT
-Content-Length: 100
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+X-Content-Type-Options: nosniff
+Content-Type: application/vnd.api+json
+ETag: W/"df8eaf13cb9cd4dd8f47df9f4ec65bb3"
+Cache-Control: max-age=0, private, must-revalidate
+X-Request-Id: 5050c781-bbfb-43a6-a7f7-2b887682d3a0
+X-Runtime: 0.022478
+Transfer-Encoding: chunked
 
-{"token":"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ."}
+{"data":[{"id":"2","type":"private-posts","links":{"self":"http://example.jp:3000/private-posts/2"},"attributes":{"title":"Qui voluptas nemo tenetur.","body":"Nemo...(中略)..."}}]}%
 ```
-</div>
+正常に"/private-posts"にアクセスすることができています。
 
-#### ② 受信したトークンを取得
-
-<div class="md-code" style="width:100%">
-```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ."
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ.
-
-HTTP/1.1 401 Unauthorized
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:21:08 GMT
-Content-Length: 49
-
-{"error":"'none' signature type is not allowed"}
-```
-</div>
-　エラーになりました。  
-
-トークンの発行時に署名アルゴリズムに"none"が指定されたというのは、検証時には関係ありませんでした。  
-
-
-<b>結論: 検証は検証時に使用する署名アルゴリズムに依存するようです。</b>
-<b>(noneは指定するな。指定するための「UnsafeAllowNoneSignatureType」というワードはいかにも怪しいが・・・。)</b>  
-
-おわり🏠  
-
-<hr>
-
-　次はもっとセキュリティ色の強い記事を書きたい...。
-
-## 更新履歴
-
-- 2017年5月14日 新規作成
+これでJSON Web Tokenの実装が完了となります。

@@ -1,4 +1,4 @@
-<div style="text-align:center;">[f:id:motikan2010:20170514015521p:plain:w500]</div>
+[f:id:motikan2010:20170211223100p:plain]  
 
 <div class="contents-box">
   <p>[:contents]</p>
@@ -6,196 +6,417 @@
 
 ## はじめに
 
-　前回に引き続き「jwt-go」でいろいろ試してみます。  
-今回は<span class="m-y">署名アルゴリズムを改ざんして送信</span>したときの挙動を確認していきます。  
+　Go言語でWebアプリ開発をしていみたいと思っていましたので、Webフレームワークを調べてみると色々なものがあった。  
 
-[http://motikan2010.hatenadiary.com/entry/2017/05/12/jwt-go%E3%82%92%E4%BD%BF%E3%81%A3%E3%81%A6%E3%81%BF%E3%82%8B:embed:cite]  
+[http://qiita.com/jumbOrNot/items/45f86db15a5a6c8a0622:title]  
+その中で速度が速く、人気もある『Gin』を手始めにさわってみることにします。
 
-## 動作確認
-
-### 署名アルゴリズムを改ざん
-
-　なぜこんなことを試すのかというと、<span class="m-y">トークン内の署名アルゴリズムを改ざんしてリクエストを送信したときに改ざん後の署名アルゴリズムで署名の検証が行われる</span>実装があるようです。  
-  
-　詳しくは下記の記事を参照下さい。
-
-[http://oauth.jp/blog/2015/03/16/common-jws-implementation-vulnerability/:embed:cite]  
-
-　jwt-goでは署名アルゴリズムを改竄して送信したときにどのような動作をするのかを確認していきます。  
-
-[f:id:motikan2010:20170514014545j:plain]  
+[https://github.com/gin-gonic/gin:embed:cite]  
 
 <!-- more -->
 
-　確認に使うソースコードは前回と同様です。  
+## 実装
 
-[https://github.com/motikan/jwt-go_Sample/blob/master/main.go:title]  
+　作成するものは「SQLiteを使ったTODOリストアプリ」です。  
 
-#### ① トークンを取得
+こちらの記事を参考にして作成しました。  
+[https://developers.eure.jp/tech/go_web_application_1/:title]
 
-<div class="md-code" style="width:100%">
+
+作成順序としては  
+　ビュー  → コントローラ → モデル  
+です。  
+
+下記のコマンドでGinをインストールすることができます。
 ```
-$ curl -v http://example.jp:8080/api/
-GET /api/ HTTP/1.1
-Host: example.jp:8080
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 14:18:34 GMT
-Content-Length: 144
-
-{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.iTEWurGMvi1d90yMW0OnqbQ0QDEyB-UD4TmYF9YQXYY"}
+$ go get gopkg.in/gin-gonic/gin.v1
 ```
-</div>
 
-　トークンヘッダの署名アルゴリスムを改ざんします。
+### 1. HTMLテンプレートを呼び出す
 
-|||bsae64エンコード|
-|-|-|-|
-|改ざん前|{"alg":"HS256","typ":"JWT"}|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9|
-|改ざん後|{"alg":"none","typ":"JWT"}|eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K|
-
-#### ② 署名アルゴリズムを"none"に改ざんしてリクエストを送信
-
-<div class="md-code" style="width:100%">
+まずは「/」にアクセスしたら、「index.tmpl」を呼び出し、出力するだけのコードを書いていきます。  
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ."
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.
-
-HTTP/1.1 401 Unauthorized
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 14:30:26 GMT
-Content-Length: 49
-
-{"error":"'none' signature type is not allowed"}
+$ vim main.go
 ```
-</div>
 
-　ステータスコードは「401 Unauthorized」、レスポンスボディに「`'none' signature type is not allowed`」とある通り、
-改ざん後の署名アルゴリズムが適用されず、<span style="color: #d32f2f">署名の検証には失敗しました</span>。  
-[f:id:motikan2010:20170514014735j:plain]  
-
-### トークン発行時「SHA256」、検証には「none」
-
-　"none"にするため、ソースコードの下記の部分を変更します。
-
-<div class="md-code" style="width:100%">
 ```go
-/*
-   署名の検証
-*/
-token, err := request.ParseFromRequest(c.Request, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
-	//b := []byte(secretKey)
-	b := jwt.UnsafeAllowNoneSignatureType
-	return b, nil
+package main
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+func main() {
+	router := gin.Default()
+	router.LoadHTMLGlob("views/*")
+
+	router.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.tmpl", gin.H{
+                    "title": "Hello Gin!",
+                })
+	})
+
+	router.Run(":8080")
+}
+
+```
+#### 1-1. HTMLテンプレート作成
+
+main.goで
+```
+gin.H{
+	"title": "Hello Gin!",
+}
+```
+と定義しているので、テンプレート側で「{{ .title }}」と記述してレンダリングさせることができます。
+
+```
+$ mkdir views
+$ vim views/index.tmpl
+```
+
+```html=
+<!DOCTYPE html>
+<html>
+	<head>
+	    <title>{{ .title }}</title>
+	</head>
+	<body>
+		<h3>{{ .title }}</h3>
+	</body>
+</html>
+```
+
+ここまでできたら起動させてアクセスしてみます。
+
+#### 1-2. 動作確認
+
+```
+$ go run main.go
+```
+「http://127.0.0.1:8080」にアクセスしてみます。  
+[f:id:motikan2010:20170211215514p:plain]  
+
+### 2. コントローラを作る
+
+　ビューとモデル(DB)を橋渡しをするコントローラを作成していきます。  
+
+#### 2-1.  タスク一覧を渡すコントローラ作成
+今はタスク一覧はDBから持ってくるのではなく、コントローラ内でをタスク配列として用意し、  
+そのタスク一覧をテンプレート側に渡す処理を書いていきます。
+```
+$ mkdir controllers
+$ vim controllers/task.go
+```
+
+```go
+package task
+
+import "strconv"
+
+// idとテキストを保持する構造体
+type Task struct {
+	ID   int
+	Text string
+}
+
+func NewTask() Task {
+	return Task{}
+}
+
+// タスク構造体一覧を返す
+func (c Task) GetAll() interface{} {
+
+	// テストデータとして５つタスクを作成
+	tasks := make([]*Task, 5)
+	for i := 1; i <= 5; i++ {
+		tasks[i-1] = &Task{ID: i, Text: "Task Text " + strconv.Itoa(i)}
+	}
+
+	return tasks
+}
+```
+
+#### 2-2. コントローラの呼び出し
+
+```
+$ vim main.go
+```
+
+```go
+//・・・
+
+router.GET("/", func(c *gin.Context) {
+    controller := task.NewTask()
+    tasks := controller.GetAll()
+
+    c.HTML(http.StatusOK, "index.tmpl", gin.H{
+        "title": "TODO List",
+        "tasks": tasks,    //　追記 テンプレートにタスクを渡す
+    })
 })
+
+//・・・
 ```
-</div>
 
-[f:id:motikan2010:20170514015036j:plain]  
+#### 2-3. テンプレートを修正
 
-#### 署名アルゴリズムを"none"に改ざんしてリクエストを送信
+　タスク一覧をリストとして表示するforを記述していきます。
 
-<div class="md-code" style="width:100%">
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ."
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 15:46:04 GMT
-Content-Length: 56
-
-{"message":"こんにちは、「 ゲスト 」さん"}
+$ vim views/index.tmpl
 ```
-</div>
 
-　署名の検証が行われていないことがわかる。  
+```html
+//・・・
 
-#### おまけ
+<body>
+<h3>{{ .title }}</h3>
+    <ul>
+    {{ range $index, $task := .tasks }}
+        <li>{{ $task.ID }}: {{ $task.Text }} </li>
+    {{ end }}
+    </ul>
+</body>
 
-　ちなみに署名アルゴリズムを<b>noneに指定した状態で、シグネチャを付与</b>しリクエストを送信した場合は、以下のようなエラーになりました。
-
-||base64エンコード|
-|-|-|
-|{"alg":"none","typ":"JWT"}|eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K|
-
-<div class="md-code" style="width:100%">
+//・・・
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.SetZ6qLSbfIObsaZSNGS4hVh5h8ob0Kr4h1fJGA75-s"
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0K.eyJleHAiOjE0OTQ2OTM4NDgsInVzZXIiOiLjgrLjgrnjg4gifQ.SetZ6qLSbfIObsaZSNGS4hVh5h8ob0Kr4h1fJGA75-s
 
-HTTP/1.1 401 Unauthorized
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:11:03 GMT
-Content-Length: 59
+[f:id:motikan2010:20170211215616p:plain]
 
-{"error":"'none' signing method with non-empty signature"}
+### 3. モデルを作成して、DBにタスクを保存する
+
+　タスク内容をDB内に保存できるようにします。  
+今回DBはSQLiteを使っていきます。
+
+#### 3-1. Modelを作成
+
+　タスクを登録するためにCreate関数を用意しています。  
+文字列の引数を受け取り、その文字列をDBに挿入するような動作を行います。
+
 ```
-</div>
-
-　"none"を指定した場合はシグネチャを付与するなと怒られました。
-
-### トークン発行時「none」、検証には「SHA256」
-
-[f:id:motikan2010:20170514014808j:plain]  
-
-#### ① トークンを取得
-
-<div class="md-code" style="width:100%">
+$ mkdir models
+$ vim models/task.go
 ```
-$ curl -v http://example.jp:8080/api/
-GET /api/ HTTP/1.1
-Host: example.jp:8080
-User-Agent: curl/7.43.0
-Accept: */*
 
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:18:49 GMT
-Content-Length: 100
+```go
+package task
 
-{"token":"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ."}
+import (
+	"github.com/jinzhu/gorm"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+var db *gorm.DB
+
+func init() {
+	var err error
+
+	db, err = gorm.Open("sqlite3", "task.db")
+
+	db.DropTableIfExists(&Task{})
+	db.CreateTable(&Task{})
+
+	if err != nil {
+		panic(err)
+	}
+}
+
+type Task struct {
+	ID   int    `gorm:"primary_key"`
+	Text string `gorm:"size:140"`
+}
+
+type Tasks []Task
+
+type TaskRepository struct {
+}
+
+func NewTaskRepository() TaskRepository {
+	return TaskRepository{}
+}
+
+// データベースに一行登録する
+func (m TaskRepository) Create(text string) {
+	var task = Task{Text: text}
+	db.NewRecord(task)
+	db.Create(&task)
+	db.Save(&task)
+}
 ```
-</div>
 
-#### ② 受信したトークンを取得
+#### 3-2. コントローラ − Create関数を追加
 
-<div class="md-code" style="width:100%">
+　こちらでもCreate関数を定義しています。  
+モデル内に定義されているCreate関数に対して、ユーザが送信したタスク文字列を渡しています。
+
 ```
-$ curl -v http://example.jp:8080/api/private/ -H "Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ."
-GET /api/private/ HTTP/1.1
-Host: example.jp:8080
-Authorization: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjE0OTQ2OTU5MjksInVzZXIiOiLjgrLjgrnjg4gifQ.
-
-HTTP/1.1 401 Unauthorized
-Content-Type: application/json; charset=utf-8
-Date: Sat, 13 May 2017 16:21:08 GMT
-Content-Length: 49
-
-{"error":"'none' signature type is not allowed"}
+$ vim controllers/task.go
 ```
-</div>
-　エラーになりました。  
 
-トークンの発行時に署名アルゴリズムに"none"が指定されたというのは、検証時には関係ありませんでした。  
+```go
+import (
+	"strconv"
 
+	task "../models"
+)
 
-<b>結論: 検証は検証時に使用する署名アルゴリズムに依存するようです。</b>
-<b>(noneは指定するな。指定するための「UnsafeAllowNoneSignatureType」というワードはいかにも怪しいが・・・。)</b>  
+//・・・
 
-おわり🏠  
+func (c Task) Create(text string) {
+	repo := task.NewTaskRepository()
+	repo.Create(text)
+}
+```
 
-<hr>
+#### 3-3. POSTデータの受け取り
 
-　次はもっとセキュリティ色の強い記事を書きたい...。
+　「text := c.PostForm("text")」でユーザが送信したパラメータを取得することができます。
+```
+$ vim main.go
+```
 
-## 更新履歴
+```go
+func main() {
 
-- 2017年5月14日 新規作成
+	//・・・
+
+	router.POST("/", func(c *gin.Context) {
+		text := c.PostForm("text")
+		ctrl := task.NewTask()
+		ctrl.Create(text)
+
+		c.Redirect(http.StatusMovedPermanently, "/")
+	})
+```
+
+#### 3-4. 登録フォームの作成
+
+　アプリケーションにタスク文字列を送信するためにフォームを追加します。  
+
+```
+$ vim views/index.tmpl
+```
+
+```html
+//・・・
+
+<ul>
+<form action="/" method="post">
+  <input type="text" name="text"></input>
+  <input type="submit" value="送信">
+</form>
+{{ range $index, $task := .tasks }}
+    <li>{{ $task.ID }}: {{ $task.Text }} </li>
+{{ end }}
+</ul>
+
+//・・・
+```
+
+#### 3-5. タスクを登録
+```
+$ go run main.go
+```
+[f:id:motikan2010:20170211215637p:plain]
+
+#### 3-6. 登録されたタスクの確認
+
+```
+$ sqlite3 task.db
+
+sqlite> .tables
+tasks
+
+sqlite> select * from tasks;
+1|Test task
+```
+
+### 4. データベースに登録したタスクを出力
+
+#### 4-1. モデル − GetAll関数を追加
+
+　GetAll関数はDBに登録されているタスクを全て返します。
+```
+$ vim models/task.go
+```
+
+```go
+func (m TaskRepository) GetAll() Tasks {
+	var tasks = Tasks{}
+	db.Find(&tasks)
+
+	return tasks
+}
+```
+
+#### 4-2. コントローラ − GetAll関数を修正
+
+```
+$ vim controllers/task.go
+```
+
+```go
+func (c Task) GetAll() interface{} {
+	repo := task.NewTaskRepository()
+	tasks := repo.GetAll()
+
+	return tasks
+}
+```
+
+[f:id:motikan2010:20170211215706p:plain]
+
+### 5. idを指定してタスクを取得
+
+#### 5-1. モデル - GetByID関数を追加
+
+　GetByID関数はタスクIDを引数として受け取り、該当するタスクを返します。
+```
+$ vim models/task.go
+```
+```go
+func (m TaskRepository) GetByID(id int) Tasks {
+	var tasks = Tasks{}
+	db.Find(&tasks, id)
+	return tasks
+}
+```
+
+#### 5-2. コントローラ - Get関数を追加
+```
+$ vim controllers/task.go
+```
+
+```go
+func (c Task) Get(n int) interface{} {
+	repo := task.NewTaskRepository()
+	tasks := repo.GetByID(n)
+
+	return tasks
+}
+```
+
+#### 5-3. Getを呼び出す
+
+```go
+func main() {
+
+    //・・・
+
+    router.GET("/:id", func(c *gin.Context) {
+            var id, _ = strconv.Atoi(c.Param("id"))
+            ctrl := task.NewTask()
+            tasks := ctrl.Get(id)
+
+            c.HTML(http.StatusOK, "index.tmpl", gin.H{
+                "tasks": tasks,
+            })
+        })
+```
+
+#### 5-4. 動作確認
+「`http://127.0.0.1:8080/2`」にアクセスすると、idが2のタスクが表示されます。  
+[f:id:motikan2010:20170211215739p:plain]

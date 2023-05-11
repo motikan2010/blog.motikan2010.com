@@ -1,67 +1,128 @@
-## 動作確認
+<p align="center">[f:id:motikan2010:20190824233013p:plain]</p>
 
-### サンプルアプリケーションの動作確認
+<div class="contents-box">
+  <p>[:contents]</p>
+</div>
 
-#### シリアライズ後の値を取得
+## はじめに
 
-```
-$ curl 'http://127.0.0.1:8080/?name=TaroYamada&age=30'
+　「OWASP Security Shepherd」はWebセキュリティを学ぶことができるアプリケーションです。  
 
-rO0ABXNyADZjb20uZXhhbXBsZS5pbnNlY3VyZV9kZXNlcmlhbGl6YXRpb24uY29udHJvbGxlci5QZXJzb26eHGFQi1tVeAIAAkkAA2FnZUwABG5hbWV0ABJMamF2YS9sYW5nL1N0cmluZzt4cAAAAB50AApUYXJvWWFtYWRh
-```
+Webフレームワークを用いた場合でも発生する可能性が高い脆弱性（リクエストパラメータの改ざん等）が取り上げられており、そのような脆弱性に対して実際に攻撃する経験をすることができます。
+  
+　<span class="m-y">Webフレームワークを用いての開発が主流となっている昨今でも非常に有意義な学習用ツール</span>だと思っています。
+普段開発で用いらないローカルプロキシを使い始めるきっかけにもよいかと。
 
+　使い方の流れとしては「ログイン → 問題を解く → スコアに反映」といった感じです。  
+構築も簡単であり、競技形式で学習ができるのが素晴らしい点だと思っています。  
+[f:id:motikan2010:20190825000646p:plain]
 
-```
-$echo -n 'rO0ABXNyADZjb20uZXhhbXBsZS5pbnNlY3VyZV9kZXNlcmlhbGl6YXRpb24uY29udHJvbGxlci5QZXJzb26eHGFQi1tVeAIAAkkAA2FnZUwABG5hbWV0ABJMamF2YS9sYW5nL1N0cmluZzt4cAAAAB50AApUYXJvWWFtYWRh' | base64 -D | hexdump -C
+### 公式サイト
 
-00000000  ac ed 00 05 73 72 00 36  63 6f 6d 2e 65 78 61 6d  |....sr.6com.exam|
-00000010  70 6c 65 2e 69 6e 73 65  63 75 72 65 5f 64 65 73  |ple.insecure_des|
-00000020  65 72 69 61 6c 69 7a 61  74 69 6f 6e 2e 63 6f 6e  |erialization.con|
-00000030  74 72 6f 6c 6c 65 72 2e  50 65 72 73 6f 6e 9e 1c  |troller.Person..|
-00000040  61 50 8b 5b 55 78 02 00  02 49 00 03 61 67 65 4c  |aP.[Ux...I..ageL|
-00000050  00 04 6e 61 6d 65 74 00  12 4c 6a 61 76 61 2f 6c  |..namet..Ljava/l|
-00000060  61 6e 67 2f 53 74 72 69  6e 67 3b 78 70 00 00 00  |ang/String;xp...|
-00000070  1e 74 00 0a 54 61 72 6f  59 61 6d 61 64 61        |.t..TaroYamada|
-0000007e
-```
+[https://www.owasp.org/index.php/OWASP_Security_Shepherd:embed:cite]
 
-[3-3. シリアル化と情報漏洩](https://www.ipa.go.jp/security/awareness/vendor/programmingv1/a03_03.html)
-
-> 最初の２バイト「AC ED」はシリアル化ストリームに固有のマジックナンバー，次の２バイト「00 05」はシリアル化仕様のバージョン番号である。
+<!-- more -->
 
 
-#### デシリアライズの確認
+## DVWA(Damn Vulnerable Web Application)との違い
+　Webセキュリティを学ぶ上でやられサーバとしてDVWAが有名ですが、OWASP Security Shepherdとの大きな違いは、学ぶことのできる脆弱性の種類が異なります。  
+　DVWAではXSSやSQLインジェクション、OSコマンドインジェクションといった実装上の脆弱性を主に学ぶことができます。  
+　OWASP Security Shepherdでは実装上の脆弱性ではなく、仕様上の脆弱性をメインに学ぶことができます。具体的にはリクエストパラメータを不正に改変した場合に問題が発生する脆弱性です。  
+脆弱性診断ツール等では検出することが難しい脆弱性を攻撃者側視点になって学ぶことができるツールです。  
+
+　問題形式での学習をなっており、各問題解くことによりポイントが取得することができ、複数人のアカウントを作成することで競技形式で学習に取り組むことも可能となっています。
+
+## 環境構築
+
+　OWASP Security ShepherdはGitHub上で管理されており、環境構築ドキュメントもGitHubで公開されています。
+
+　セットアップ方法は下記リンク先に記載されています。
+[https://github.com/OWASP/SecurityShepherd/wiki:title]  
+
+　Docker環境も用意されていますが、Virtual Boxで起動した方が容易だと思います。  
+最後にも紹介しますが、取得できるVMイメージをAWS EC2上で動作させることが可能です。
+
+## 試しに解いてみる
+　動作する環境も用意できたことですので、試しに2問解いていきます。  
+序盤の問題ということもあり、チュートリアル程度の難易度です。
+
+### 問題 1 - 入力フォームが無い状態でのリクエスト改変
+　問題の画面は以下の通りです。  
+・「キー入力部分」に問題を解いた時に取得できるキーを入力することでポイントを取得できます。  
+・「問題の説明」に当問題に取り組むことによって得られる知識が記載されています。  
+・「キーの取得方法」に問題の内容が記載されています。
+[f:id:motikan2010:20190824195658p:plain]  
+
+　では、実際に問題を解いていくことにします。  
+この問題では、<b>管理者アカウントのプロフィールを得ることができればキーも取得できる</b>らしいです。
+> The result key to complete this lesson is stored in the administrators profile. 
+
+何もしていない場合だとゲストアカウントのプロフィールが表示されている状態になっていますので、管理者アカウントのプロフィールを取得する方法を考えてみます。  
+
+　「Refresh your Profile」ボタンを押下した際のレスポンスを見てみますと、アカウントのプロフィール情報を取得する動作を行なっているようです。  
+
+リクエスト  
+[f:id:motikan2010:20190824195639p:plain]  
+
+レスポンス  
+[f:id:motikan2010:20190824195631p:plain]  
+
+　リクエストの内容に着目してみるとusernameパラメータにguestという値が指定されています。  
+
+　ここでローカルプロキシ(Burp Suiteなど)を利用して値を"admin"に変更して送信してみると、キーを取得することができました。  
+
+　この問題では、入力値のチェックを行なっていないことが脆弱性となっていました。  
+　取得でしたキーを送信することでポイントが入ります。  
+
+[f:id:motikan2010:20190824195649p:plain]  
+[f:id:motikan2010:20190824195636p:plain]  
+
+　当問題を通して「HTTPリクエスト内容は改変できる」や「ローカルプロキシ基礎的な使い方」ことを学ぶことができます。  
+
+　このようにOWASP Security Shepherdを利用することで、Web開発時に意識すべきセキュリティ（仕様上の脆弱性）に触れることが可能です。
+
+　ちなみに左タブの「Scoreboard」から現在の順位とスコアを確認することができます。  
+1問解くごとに最大15ptを獲得できるようになっており、早く解いた人が高ポイントを獲得できる仕組みとなっています。
+
+[f:id:motikan2010:20190824195703p:plain]  
+
+### 問題 2 - JavaScript側のバリデーションの回避
+
+　2問目を解いていきます。
+
+[f:id:motikan2010:20190824195654p:plain]  
+
+　負数を送信すればキーを取得できるそうです。試しに「-1」を入力し送信してみます。
+> To get the result key to this lesson, you must bypass the validation in the following function and submit a negative number. 
+
+　以下のようにエラーが表示されました。0より大きい値を入力する必要がありそうです。
+[f:id:motikan2010:20190824224043p:plain]
+
+　1問目と同じようにローカルプロキシを用いてリクエスト内容を「-1」に改変してみます。
+[f:id:motikan2010:20190824222856p:plain]
+
+　そうすると正解だったらしく、キーを取得することができました。
+
+　この問題からはクライアント側、つまりJavaScriptで入力値のバリデーションチェック（妥当性チェック）を行うだけでは不十分であることを学ぶことができました。
+
+　今でもサイトによっては、入力値にセレクトボックスやラジオボタンを用いているという理由からサーバ側でのチェックを実施していないという状態が見受けられます。  
+　<span class="m-y">問題を通していかにリクエストの改変が容易であることを分かったはずです。</span>
+
+## AWS EC2で動作させる方法
+
+　OVA(Open Virtualization Format Archive)ファイルで提供されているので、AWS AMIとして取り込むことができ、 AWS EC2上で動作させることが可能です。  
+　<span class="m-y">EC2で動作させることで誰でもが参加ができるOWASP Security Shepherd環境が容易に構築できます。</span>
+
+　OVAファイル形式のVMをEC2上で動作させるための具体的な方法は下の記事を参照下さい。
+
+[https://qiita.com/bezeklik/items/ffd888a1c85eb86baded:embed:cite]
 
 
-```
-$ echo -n 'rO0ABXNyADZjb20uZXhhbXBsZS5pbnNlY3VyZV9kZXNlcmlhbGl6YXRpb24uY29udHJvbGxlci5QZXJzb26eHGFQi1tVeAIAAkkAA2FnZUwABG5hbWV0ABJMamF2YS9sYW5nL1N0cmluZzt4cAAAAB50AApUYXJvWWFtYWRh' | \
-base64 -D | \
-curl 'http://127.0.0.1:8080/' -X POST --data-binary @-
+## まとめ
 
-「TaroYamada」30歳
-```
+　いかがだったでしょうか。WebセキュリティといえばXSSやSQLインジェクションといった実装上の脆弱性が着目されがちですが、テンプレートエンジンやO/Rマッパーの利用が前提となっている昨今の開発ではあまり発生しづらい脆弱性となっていると思っています。(もちろん存在していない訳ではないですが)  
 
-### どのように攻撃するのか
+ <span style="color: #ff0000">そのような時代背景もありWebセキュリティを学ばず開発案件に入ることもあるでしょう。</span>  
 
-
-[java.lang.Runtime.exec() Payload Workarounds - @Jackson_T](http://www.jackson-t.ca/runtime-exec-payloads.html)
-
-Mac OS環境の場合は「`base64 -D`」を指定します。
-
-#### PoC生成ツール「ysoserial」
-
-[frohoff/ysoserial: A proof-of-concept tool for generating payloads that exploit unsafe Java object deserialization.](https://github.com/frohoff/ysoserial)  
-　PHPでいう「PHPGGC」です。
-
-[ysoserial/CommonsCollections2.java at 30099844c60958e10f60749dfad6311f3e732d3d · frohoff/ysoserial](https://github.com/frohoff/ysoserial/blob/30099844c60958e10f60749dfad6311f3e732d3d/src/main/java/ysoserial/payloads/CommonsCollections2.java)
-
-[commons-collections/TransformingComparator.java at collections-4.1 · apache/commons-collections](https://github.com/apache/commons-collections/blob/collections-4.1/src/main/java/org/apache/commons/collections4/comparators/TransformingComparator.java)
-
-```
-compile group: 'org.apache.commons', name: 'commons-collections4', version: '4.0'
-```
-
-「`commons-collections4`」を依存ライブラリとして追加していない場合に発生するエラー。
-```
-java.lang.ClassNotFoundException: org.apache.commons.collections4.comparators.TransformingComparator
-```
+　私のまわりにもリクエストを改変する、つまり入力フォームで入力できない値を送信することができることを知らない方がチラホラいました。（知らないというよりは全く意識していないような感じでしたが・・・）  
+　最初の2問だけやってみるだけでも、ローカルプロキシの使い方が分かりWebエンジニア初心者にとっては非常に有意義な学習用ツールだと考えております。

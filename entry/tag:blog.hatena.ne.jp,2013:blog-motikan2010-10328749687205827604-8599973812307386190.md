@@ -1,255 +1,298 @@
-<div style="text-align:center;">[f:id:motikan2010:20180211221846p:plain]</div>  
-
 <div class="contents-box">
   <p>[:contents]</p>
 </div>
 
 ## はじめに
 
-　Webアプリケーションのセキュリティを診断するツールとして、Burp Suiteが代表の１つとしてあり、拡張プラグインに頼らなくても標準の機能で多種類の診断を行うことができるほど多機能です。    
-
-　しかし、Webアプリケーションによっては遷移方法が特殊な場合がありは、拡張プラグインに頼らなくてはいけない場合もあります。  (値が更新されるCSRFトークンが存在する等)
-
-　そこで、Burp Siteでは**「BApp Store」に多くの人が開発した、拡張プラグインが公開されています。**  
-
-#### 拡張プラグインのストア「BApp Store」
-
-　「BApp Store」で公開されている拡張プラグインで事足りるのであれば、独自に拡張プラグインを開発する必要はないと思っています。    
-
-[https://portswigger.net/bappstore:embed:cite]
-
-　しかし、公開されている拡張プラグインで対応できない診断対象に対応するためにも、独自に拡張プラグインを作成し、**より妥協のないセキュリティ診断を行うため**にも拡張プラグインの開発方法を学習していきます。
-
-<!-- more -->
-
-　ユニークな拡張プラグインを開発を開発できたら、BApp Storeに公開するのもありだと思います。  
-　良い拡張プラグインを開発する際に気を付ける点は下記のブログにまとめられています。  
-
-[http://blog.portswigger.net/2018/01/your-recipe-for-bapp-store-success.html:embed:cite]
-
-　今回は手始めに「Hello, world!」拡張プラグインを開発していきます。  
-拡張ということもあり、Burp Suiteにメインの処理は任せるようにし、送信するリクエストの加工や受信したレスポンスの検査等を拡張プラグインで行うようになっていくと考えています。
-
-## 開発環境
-
-　拡張プラグインは <span style="color: #ff0000">**Java・Ruby・Python で開発できます**</span>が、今回はJavaを用いて開発を行なっていきます。  
-
-今回作成するプロジェクトのリポジトリは下記になります。
-
-[https://github.com/motikan2010/Burp-Suite-Learning-Chapter01:title]
-
-　私の開発環境は以下のようになっています。  
-
-| | |
-|-|-|
-| OS | macOS 10.12 Sierra |
-| プログラム言語 | Java8 |
-| ビルドツール | Maven |
-| IDE | IntelliJ IDEA |
+　Specificationインタフェースを利用した副問合せに関して、あまり情報が見当たらなかったので、メモ程度に紹介します。
 
 ## 実装
 
-### 1. ディレクトリ構造
+### サンプルテーブル
 
-　最終的なディレクトリ構造は下記のようになります。
+　本記事では以下のサンプルテーブルを例に説明していきます。  
+<span class="m-y">「1対多」の関係を例に説明していきます。</span>  ユーザが1、ツイートが多となっています。
 
-<div class="md-code" style="width:100%">
+[f:id:motikan2010:20171013000832p:plain:w400]  
+
+### コード
+
+　本記事での目的は「同じ内容のツイートを3回以上しているユーザ」を選択するという少し面倒なSQL文を発行するというものです。  
+　ネイティブクエリを利用すれば簡単ですが、Specificationで副問合せのSQLを発行するやり方です。
+
+[f:id:motikan2010:20171014134003j:plain]  
+
+<!-- more -->
+
+#### ファイル構成
+
 ```
-.
-├── pom.xml
-└── src
-    └── main
-        └── java
-            └── burp
-                └── BurpExtender.java
+ ── dbapp
+    ├── DbappApplication.java
+    ├── model
+    │   ├── Tweet.java
+    │   ├── Tweet_.java
+    │   ├── User.java
+    │   └── User_.java
+    ├── repository
+    │   ├── TweetRepository.java
+    │   └── UserRepository.java
+    └── spec
+        └── BadUserSpec.java
 ```
-</div>
 
-### 2. Burp拡張ライブラリ(Burp Extender API)の取得
+#### Specification
 
-[https://mvnrepository.com/artifact/net.portswigger.burp.extender/burp-extender-api:title]
+　発行クエリを生成する部分です。ここで副問合せとなるSQLを生成しますので、本記事で一番重要な部分です。
 
-　Burp Extender API は "Maven Repository" に登録されており、`pom.xml`ファイルを編集することで導入することができます。
+##### BadUserSpec.java
 
-#### pom.xml の編集
-
-<div class="md-code" style="width:100%">
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-
-  <groupId>com.motikan2010</groupId>
-  <artifactId>burplearning</artifactId>
-  <version>1.0-SNAPSHOT</version>
-
-  <dependencies>
-    <!-- https://mvnrepository.com/artifact/net.portswigger.burp.extender/burp-extender-api -->
-    <dependency>
-      <groupId>net.portswigger.burp.extender</groupId>
-      <artifactId>burp-extender-api</artifactId>
-      <version>1.7.22</version>
-    </dependency>
-  </dependencies>
-</project>
-```
-</div>
-
-### 3. Javaファイルの作成
-
-　最初はライブラリ読込み時に実行されるコードを書いていきます。  
-
-　Burp拡張プラグインは、Javaでよく見られる mainメソッド から実行ではありません。  
-
-　下記の条件に合致するクラスを作成します。  
-
-- パッケージが <span style="color: #ff0000">burp</span> に属している
-- クラス名が <span style="color: #ff0000">BurpExtender</span>
-- インターフェース <span style="color: #ff0000">IBurpExtender</span> を実装
-
-　実行コードは、<b>registerExtenderCallbacksメソッド</b>内に書いていきます。
-
-- BurpExtender.java  
-<div class="md-code" style="width:100%">
+<div class="sm-code">
 ```java
-package burp;
+package com.motikan2010.dbapp.spec;
 
-import java.io.PrintWriter;
+import com.motikan2010.dbapp.model.Tweet;
+import com.motikan2010.dbapp.model.Tweet_;
+import com.motikan2010.dbapp.model.User;
+import com.motikan2010.dbapp.model.User_;
+import org.springframework.data.jpa.domain.Specification;
 
-public class BurpExtender implements IBurpExtender {
+import javax.persistence.criteria.*;
+import java.util.ArrayList;
+import java.util.List;
 
-    public void registerExtenderCallbacks(IBurpExtenderCallbacks iBurpExtenderCallbacks) {
-        // ここにコードを書いていく
+public class BadUserSpec implements Specification<User> {
+
+    @Override
+    public Predicate toPredicate(Root<User> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
+        final List<Predicate> predicates = new ArrayList<>();
+
+        // サブクエリ
+        Subquery<Tweet> subquery = query.subquery(Tweet.class);
+        Root<Tweet> subRoot = subquery.from(Tweet.class);
+        subquery.select(subRoot.get(Tweet_.user.getName()));
+        subquery.where(cb.equal(root.get(User_.id.getName()), subRoot.get(Tweet_.user.getName())));
+        // ツイート内容でグループ化
+        subquery.groupBy(subRoot.get(Tweet_.body.getName()));
+        // 条件 
+        subquery.having(cb.and(
+                cb.greaterThanOrEqualTo(cb.count(subRoot), 3L)
+        ));
+
+        predicates.add(cb.exists(subquery));
+
+        return cb.and(predicates.toArray(new Predicate[predicates.size()]));
     }
+
 }
 ```
 </div>
 
-　この記事では下記を学んでいきます。  
+#### エンティティ（モデル）
 
-- プラグイン名の設定と表示
-- 「Output」タブに標準メッセージの表示
-- 「Error」タブにエラーメッセージの表示、例外メッセージの表示
-- 「アラート」タブにメッセージの表示
-
-### 4. プラグインに名前を付ける
-
-[f:id:motikan2010:20180211204005p:plain]  
-
-　`Name列`の値を指定できます。  
-
-<div class="md-code" style="width:100%">
+##### User.java
+<div class="sm-code">
 ```java
-// 拡張プラグインの命名
-iBurpExtenderCallbacks.setExtensionName("Hello, Burp Suite");
-```
-</div>
+package com.motikan2010.dbapp.model;
 
-### 5. 「Output」タブに表示
+import lombok.Data;
 
-[f:id:motikan2010:20180211204024p:plain]  
+import javax.persistence.*;
+import java.util.List;
 
-<div class="md-code" style="width:100%">
-```java
-// メッセージを表示
-PrintWriter stdout = new PrintWriter(iBurpExtenderCallbacks.getStdout(), true);
-stdout.println("INFO : Hello, Burp Suite");
-```
-</div>
+@Entity
+@Data
+@Table(name = "user")
+public class User {
 
-### 6. 「Errors」タブに表示
+    @Id
+    @GeneratedValue
+    @Column(name = "id")
+    private int id;
+    
+    @Column(name = "nickname")
+    private String nickname;
 
-<div class="md-code" style="width:100%">
-```java
-// エラーメッセージを表示
-PrintWriter stderr = new PrintWriter(iBurpExtenderCallbacks.getStderr(), true);
-stderr.println("ERROR : Hello, Burp Suite");
-```
-</div>
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<Tweet> tweetList;
 
-### 7. 例外メッセージを表示
-
-　例外メッセージはエラーと同じタブに表示されるようになっています。  
-[f:id:motikan2010:20180211204047p:plain]  
-
-<div class="md-code" style="width:100%">
-```java
-throw new RuntimeException("Burp Suite exceptions");
-```
-</div>
-
-### 8. 「アラート」タブに表示
-
-[f:id:motikan2010:20180211204103p:plain]  
-
-<div class="md-code" style="width:100%">
-```java
-iBurpExtenderCallbacks.issueAlert("Burp Suite Alerts");
-```
-</div>
-
-## コンパイル から プラグインの読み込み まで
-
-　最終的に完成したコードは下記の通りになります。  
-このファイルをコンパイル（ビルド）し、Burp Suite で読み込んで実行させます。  
-
-- BurpExtender.java
-<div class="md-code" style="width:100%">
-```java
-package burp;
-
-import java.io.PrintWriter;
-
-public class BurpExtender implements IBurpExtender {
-
-    public void registerExtenderCallbacks(IBurpExtenderCallbacks iBurpExtenderCallbacks) {
-        iBurpExtenderCallbacks.setExtensionName("Hello, Burp Suite");
-
-        PrintWriter stdout = new PrintWriter(iBurpExtenderCallbacks.getStdout(), true);
-        stdout.println("INFO : Hello, Burp Suite");
-
-        PrintWriter stderr = new PrintWriter(iBurpExtenderCallbacks.getStderr(), true);
-        stderr.println("ERROR : Hello, Burp Suite");
-
-        iBurpExtenderCallbacks.issueAlert("Burp Suite Alerts");
-
-        throw new RuntimeException("Burp Suite exceptions");
-    }
 }
 ```
 </div>
 
-### プロジェクトの設定
+##### Tweet.java
+<div class="sm-code">
+```java
+package com.motikan2010.dbapp.model;
 
-・`File` > `Project Structure` > `Artifacts` > `From modules with dependencies...`
-[f:id:motikan2010:20180211204139p:plain]
+import com.sun.istack.internal.NotNull;
+import lombok.Data;
 
-・`OK`  
-[f:id:motikan2010:20180211204329p:plain]
+import javax.persistence.*;
 
-・`Apply` > `OK`  
-[f:id:motikan2010:20180211204720p:plain]
+@Entity
+@Data
+@Table(name = "tweet")
+public class Tweet {
 
-### ビルド
+    @Id
+    @GeneratedValue
+    @Column(name = "id")
+    private int id;
+    
+    @Column(name = "body")
+    private String body;
 
-・`Build` > `Build Artifacts`  
-[f:id:motikan2010:20180211204812p:plain]
+    @NotNull
+    @Column(name = "user_id")
+    private int userId;
+    
+    @ManyToOne(targetEntity=User.class)
+    @JoinColumn(name = "user_id", referencedColumnName = "id", insertable=false, updatable=false)
+    private User user;
 
-### 拡張プラグインの読込み
+}
+```
+</div>
 
-・`Extender タブ` > `Extensions タブ` > `Add ボタン`
-[f:id:motikan2010:20180211213544p:plain]
+#### メタモデル
 
-・`Select file ...`
-[f:id:motikan2010:20180211213540p:plain]
+　メタモデルを作成していきます。（恥ずかしながら最近メタモデルの存在を知りました）  
 
-　以上、「Hello, world!」拡張プラグインの作成と実行ができました。  
+[https://cloudear.jp/blog/?p=2101:title]  
 
-　次回は、Burp Suiteで取得した<span style="color: #ff0000">リクエストとレスポンスのヘッダ・ボディを表示する</span>拡張プラグインを作成していきます。  
-[https://blog.motikan2010.com/entry/2018/02/13/Burp_Suite%E3%81%AE%E6%8B%A1%E5%BC%B5%E3%82%92%E4%BD%9C%E6%88%90%E5%85%A5%E9%96%80_%E3%81%9D%E3%81%AE%EF%BC%92_-_%E3%83%AA%E3%82%AF%E3%82%A8%E3%82%B9%E3%83%88%26%E3%83%AC%E3%82%B9%E3%83%9D%E3%83%B3:embed:cite]
+　ちなみにエンティティと同じパッケージに所属させないといけないらしい。  
+別のパッケージに配置し、ヌルポと格闘したのはいい思い出・・・。
+
+[https://stackoverflow.com/questions/3854687/jpa-hibernate-static-metamodel-attributes-not-populated-nullpointerexception:embed:cite]
+
+##### User_.java
+
+<div class="sm-code">
+```java
+package com.motikan2010.dbapp.model;
+
+import javax.persistence.metamodel.ListAttribute;
+import javax.persistence.metamodel.SingularAttribute;
+import javax.persistence.metamodel.StaticMetamodel;
+
+@StaticMetamodel(User.class)
+public class User_ {
+    public static volatile SingularAttribute<User, Integer> id;
+    public static volatile SingularAttribute<User, String> nickname;
+    public static volatile ListAttribute<User, Tweet> tweetList;
+}
+```
+</div>
+
+##### Tweet_.java
+
+<div class="sm-code">
+```java
+package com.motikan2010.dbapp.model;
+
+import javax.persistence.metamodel.SingularAttribute;
+import javax.persistence.metamodel.StaticMetamodel;
+
+@StaticMetamodel(Tweet.class)
+public class Tweet_ {
+    public static volatile SingularAttribute<Tweet, Integer> id;
+    public static volatile SingularAttribute<Tweet, String> body;
+    public static volatile SingularAttribute<Tweet, User> user;
+}
+```
+</div>
+
+#### リポジトリ
+
+##### UserRepository.java
+
+　中身は空っぽで問題ないです。
+
+<div class="sm-code">
+```java
+package com.motikan2010.dbapp.repository;
+
+import com.motikan2010.dbapp.model.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+public interface UserRepository extends JpaRepository<User, Integer>, JpaSpecificationExecutor<User>{
+}
+```
+</div>
+
+
+#### 呼び出し側
+
+##### DbappApplication.java
+
+<div class="sm-code">
+```java
+package com.motikan2010.dbapp;
+
+import com.motikan2010.dbapp.model.User;
+import com.motikan2010.dbapp.repository.UserRepository;
+import com.motikan2010.dbapp.spec.BadUserSpec;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+import java.util.List;
+
+@SpringBootApplication
+public class DbappApplication implements CommandLineRunner {
+
+    @Autowired
+    UserRepository userRepo;
+
+    public static void main(String[] args) {
+        SpringApplication.run(DbappApplication.class, args);
+    }
+
+    @Override
+    public void run(String... args) throws Exception {
+
+        BadUserSpec spec = new BadUserSpec();
+        List<User> userList = userRepo.findAll(spec);
+
+        for(User user : userList){
+            System.out.println(user.getId() + " : " + user.getNickname());
+        }
+
+    }
+
+}
+```
+</div>
+
+### 発行SQL
+
+<div class="sm-code">
+```sql
+select user0_.id as id1_1_, user0_.nickname as nickname2_1_ from user user0_ where exists (select tweet1_.user_id from tweet tweet1_, user user2_ where tweet1_.user_id=user2_.id and user0_.id=tweet1_.user_id group by tweet1_.body having count(tweet1_.id)>=3)
+```
+</div>
+
+　分かりやすく & 整形すると以下のようになります。
+<div class="sm-code">
+```sql
+select id , nickname 
+from user user1 
+where exists (
+    select user_id 
+    from tweet, user user2 
+    where tweet.user_id = user2.id and user1.id = tweet.user_id 
+    group by body 
+    having count(tweet.id)>=3
+)
+```
+</div>
+
+　想定通りに Specificationを利用した副問合せができています。  
+countの部分をsumやavgに変えるなどして様々なパターンに応用できそうです。
+
 
 ## 更新履歴
-
-- 2018年2月11日 新規作成
+- 2017年10月13日 新規作成
