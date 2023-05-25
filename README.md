@@ -1,5 +1,6 @@
 # Hatena Blog Entry - blog.motikan2010.com
 
+- [【翻訳】SSH公開鍵にバックドアを感染させる](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482935409064.md)
 - [26万サイト分のWordPressをセキュリティ調査「脆弱なプラグイン 編」](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-4207112889979126346.md)
 - [GPT-3 API を使って AI WAF を作る](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-4207112889965273604.md)
 - [26万サイト分のWordPressをセキュリティ調査「デフォルトログイン画面・アカウント列挙 編」](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-4207112889963770174.md)
@@ -52,7 +53,7 @@
 - [TLS1.2のみ許可しているWebDAVサーバをマウントできない](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10257846132674509596.md)
 - [【随時更新】Webセキュリティ診断ツールのまとめ](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10257846132656869897.md)
 - [LDAPインジェクションをしたかった話【セキュリティ】](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10257846132645759563.md)
-- [【AWS】ECSで構築した環境でオートスケーリング (201809)](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10257846132624695880.md)
+- [【AWS】ECSで構築した環境でオートスケーリング (2018/09)](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10257846132624695880.md)
 - [【AWS】Security-JAWSの資料まとめ【第5~9回】](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10257846132608253719.md)
 - [【開発日誌】『生つべ』というサービス作ったので利用技術の紹介](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10257846132600574117.md)
 - [Unityビルド時の「AndroidSDKToolsException エラー」の解決](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-17391345971657513305.md)
@@ -84,3 +85,9 @@
 - [Bluetoothプロキシ『btproxy』を使う【IoTセキュリティ】](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10328749687213410898.md)
 - [【PHP】『Goutte』を使って文字列からHTML解析](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10328749687212049399.md)
 - [『Laravel Collective』でのHTML生成を簡単にまとめてみる(Laravel 5.3)](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10328749687210956049.md)
+- [【Laravel 5.3】『Scaffold』と『Auth』を使ってアプリケーションを作る](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10328749687209365026.md)
+- [golang製ベンチマークツール『hey』を使ってみた](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10328749687207229228.md)
+- [Webサーバベンチマークツール『weighttp』をさわってみる](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10328749687206952353.md)
+- [【Rails】キャプチャ認証『SimpleCaptcha2』を使ってみる](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10328749687205829993.md)
+- [『Pythonだけ』でHTTPSサーバ](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10328749687205829434.md)
+- [【Python】キーボード入力文字列をバイナリデータへ変換](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-10328749687205828397.md)

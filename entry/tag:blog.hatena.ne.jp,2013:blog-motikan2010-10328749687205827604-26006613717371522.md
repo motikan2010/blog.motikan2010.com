@@ -21,9 +21,9 @@
 | - | - |
 | 購読者 (Subscriber) | できない |
 | 寄稿者 (Contributor) | できない |
-| 投稿者 (Author) | できる |
-| 編集者 (Editor) | できる |
-| 管理者 (Administrator) |  できる |
+| 投稿者 (Author) | **できる** |
+| 編集者 (Editor) | **できる** |
+| 管理者 (Administrator) |  **できる** |
 
 ### 脆弱性の修正内容
 

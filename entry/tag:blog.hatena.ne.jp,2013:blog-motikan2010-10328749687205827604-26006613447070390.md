@@ -1,4 +1,5 @@
-<span style="color: #ff0000;font-weight: bold;text-align: center;">※金欠の為、サービスは終了いたしました。</span>
+<span style="color: #ff0000;font-weight: bold;text-align: center;font-size: 1.5em">※金欠の為、当サービスは終了いたしました。</span>
+
 <hr/>
 
 <div style="text-align: center;">
