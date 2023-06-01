@@ -1,5 +1,6 @@
 # Hatena Blog Entry - blog.motikan2010.com
 
+- [やられAWS環境「AWSGoat」でペンテストを学習](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482937162731.md)
 - [【翻訳】SSH公開鍵にバックドアを感染させる](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482935409064.md)
 - [26万サイト分のWordPressをセキュリティ調査「脆弱なプラグイン 編」](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-4207112889979126346.md)
 - [GPT-3 API を使って AI WAF を作る](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-4207112889965273604.md)
