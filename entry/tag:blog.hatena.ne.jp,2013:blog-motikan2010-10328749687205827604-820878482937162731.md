@@ -132,7 +132,7 @@ AWSGost の環境構築は簡単です。
 - 以下の値をログインIDに指定することで**管理者**アカウントでログインすることが可能です。  
 「`' or '1'='1' limit 3#`」
 
-　<span style="color: #ff0000">「LIMIT 句」の有無によってログインされるアカウントが異なる点は学習ポイント</span>
+　<span style="color: #ff0000">学習ポイント : 「LIMIT 句」の有無によってログインされるアカウントが異なり、得られる権限が違います。</span>
 
 #### 脆弱性があるコード
 
@@ -879,7 +879,7 @@ $ aws iam list-attached-role-policies --role-name ecs-instance-role
 
 </div>
 
-　このロールには「**IAMFullAccess**」ポリシーがアタッチされています。  
+　このロールには「**IAMFullAccess** （AWS IAM に対してなんでもできる）」ポリシーがアタッチされています。  
 
 　そのため、ユーザを作成して管理者権限を付与することができるはずです。（※願望）
 
@@ -923,7 +923,7 @@ $ aws iam create-user --user-name hacker
 
 </div>
 
-　「**IAMFullAccess**」のポリシーを持っているにもかかわらず、パーミッションが拒否されました。
+　「**IAMFullAccess**」のポリシーがアタッチされているにもかかわらず、パーミッション拒否されました。  
 
 <div class="md-code" style="width:100%">
 
@@ -933,11 +933,11 @@ An error occurred (AccessDenied) when calling the CreateUser operation: User: ar
 
 </div>
 
-　原因を調べるために、ロールの詳細を確認してみます。
+　原因を調べるために、ロールの詳細を確認してみます。  
 
 #### ecs-instance-role ロールの詳細を確認 (aws iam get-role)
 
-　ロール「`ecs-instance-role`」の詳細を確認してみます。
+　ロール「`ecs-instance-role`」の詳細を確認してみます。  
 
 <div class="md-code" style="width:100%">
 
@@ -947,7 +947,8 @@ $ aws iam get-role --role-name ecs-instance-role
 
 </div>
 
-　ロールに「**アクセス許可境界（Permissions Boundary）**」が設定されていたため、AWSユーザの作成が失敗していました。
+　ロールに「`aws-goat-instance-boundary-policy`」というポリシーの **アクセス許可境界（Permissions Boundary）** が設定されており、AWS IAM のアクションに制限が掛けられていると推測できます。  
+　そのためAWSユーザの作成が失敗したと考えられます。  
 
 <div class="md-code" style="width:100%">
 
@@ -987,14 +988,17 @@ $ aws iam get-role --role-name ecs-instance-role
 
 </div>
 
-　ポリシー「`aws-goat-instance-boundary-policy`」の詳細を調べていきます。
+　次は、Permissions Boundary ポリシー「`aws-goat-instance-boundary-policy`」の詳細を調べていきます。
+
+　ちなみに同様にロールにアタッチされているポリシー「aws-goat-instance-policy」の詳細は下画像の通りです。  
+[f:id:motikan2010:20230602152511p:plain:w400]
 
 #### ポリシーのバージョンIDを取得する (aws iam get-policy)
 
 > コマンド説明： aws iam get-policy  
 指定された管理対象ポリシーに関する情報を取得します。
 
-　ポリシー「`aws-goat-instance-boundary-policy`」のポリシードキュメントを取得するためには、「`aws iam get-policy-version`」コマンドを利用します。  
+　Permissions Boundary ポリシー「`aws-goat-instance-boundary-policy`」のポリシードキュメントを取得するためには、「`aws iam get-policy-version`」コマンドを利用します。  
 
 このコマンドには引数には「`--version-id <バージョン ID>`」を指定する必要があり、このバージョン IDを取得するためには「`aws iam get-policy`」コマンドを実行します。  
 
@@ -1039,10 +1043,8 @@ $ aws iam get-policy \
 > コマンド説明：aws iam get-policy-version  
 指定された管理ポリシーの指定されたバージョンに関する情報をポリシードキュメントを含めて取得します。
 
-　ポリシー「`aws-goat-instance-boundary-policy`」のポリシードキュメントを取得します。  
-
-　
-ポリシードキュメントにはアクセスの許可・拒否の情報が記述されています。
+　Permissions Boundary ポリシー「`aws-goat-instance-boundary-policy`」のポリシードキュメントを取得します。  
+（ポリシードキュメントにはアクセスの許可・拒否の情報が記述されています。）  
 
 <div class="md-code" style="width:100%">
 
@@ -1054,19 +1056,6 @@ $ aws iam get-policy-version \
 
 </div>
 
-　この出力結果から以下の権限を持っていることを確認できました。  
-
-- 「`iam:List`」「`iam:Get*`」 → 権限の強いポリシーを持ったロールを探索することが可能
-- 「`ec2:RunInstance`」 → EC2を作成・起動することが可能
-- 「`iam:PassRole`」 → （RunInstance に必要で）EC2に強い権限を持ったロールをアタッチ可能
-- 「`ssm:*`」 → EC2インスタンス上で任意のコマンドを実行可能
-
-　これらの情報から以下の手順を実施すれば、最終目標（AdministratorAccess 権限を持ったAWSユーザの作成）を達成させられそうです。
-
-1. 新規EC2インスタンスを作成・起動する
-1. 新規インスタンスに対して**強い権限**を持つロールを渡す
-1. 新規インスタンスからクレデンシャルを取得する
-1. 取得したクレデンシャルを使用してAWSユーザを作成する
 
 <div class="md-code" style="width:100%">
 
@@ -1105,6 +1094,21 @@ $ aws iam get-policy-version \
 ```
 
 </div>
+
+
+　上記の出力結果と先述したポリシー「aws-goat-instance-policy」の権限を組み合わせるとロール「ecs-instance-role」は以下の操作ができそうです。  
+
+- 「`iam:List`」「`iam:Get*`」 → 権限の強いポリシーを持ったロールを探索することが可能
+- 「`ec2:RunInstance`」 → EC2を作成・起動することが可能
+- 「`iam:PassRole`」 → （RunInstance に必要で）EC2に強い権限を持ったロールをアタッチ可能
+- 「`ssm:*`」 → EC2インスタンス上で任意のコマンドを実行可能
+
+　これらの情報から以下の手順を実施すれば、最終目標（AdministratorAccess 権限を持ったAWSユーザの作成）を達成させられそうです。
+
+1. 新規EC2インスタンスを作成・起動する
+1. 新規インスタンスに対して**強い権限**を持つロールを渡す
+1. 新規インスタンスからクレデンシャルを取得する
+1. 取得したクレデンシャルを使用してAWSユーザを作成する
 
 ### 強い権限を持ったロールを探す
 
@@ -1295,7 +1299,7 @@ $ aws iam list-instance-profiles
 
 #### Amazon Linux 2 AMI のIDを取得 （aws ec2 describe-images）
 
-　新規EC2インスタンスは Amazon Linux 2 で起動させることにします。そのために AMI ID を取得します。
+　新規EC2インスタンスのOSは Amazon Linux 2 で起動させることにします。そのために AMI ID を取得します。
 
 <div class="md-code" style="width:100%">
 
@@ -1774,4 +1778,6 @@ $ aws iam create-access-key --user-name hacker
 
 [blog:g:12921228815726579926:banner]
 
+## 更新履歴
 
+[https://github.com/motikan2010/blog.motikan2010.com/commits/main/entry/tag%3Ablog.hatena.ne.jp%2C2013%3Ablog-motikan2010-10328749687205827604-820878482937162731.md:title]
