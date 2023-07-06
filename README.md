@@ -1,5 +1,6 @@
 # Hatena Blog Entry - blog.motikan2010.com
 
+- [WordPressプラグイン「Ultimate Member」の Unauthenticated Privilege Escalation(CVE-2023-3460) の普及度調査](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482947601409.md)
 - [サブドメイン列挙ツール「subfinder」を試した](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482945815296.md)
 - [コンテナからの脱獄（Container Breakout） プロセス・インジェクション 編](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482939023965.md)
 - [やられAWS環境「AWSGoat」でペンテストを学習](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482937162731.md)
