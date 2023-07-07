@@ -28,7 +28,7 @@
 ## 検証情報（キャプチャ画像有り）
 
 　実際に検証された方のレポートです。  
-フォームの入力値に含まれている  cur lコマンド が実行されていることが確認できます。
+フォームの入力値に含まれている `curl`コマンド が実行されていることが確認できます。
 [https://github.com/jas502n/CVE-2019-11581/:embed:cite]
 
 ### PoC（検証コード）
@@ -78,7 +78,7 @@ https://product-downloads.atlassian.com/software/jira/downloads/atlassian-jira-s
 
 　警視庁によると当脆弱性のスキャンが観測されたとのことです。  
   
-[f:id:motikan2010:20191003193439p:plain:w400]
+[f:id:motikan2010:20191003193439p:plain:w500]
 
 [https://www.npa.go.jp/cyberpolice/important/2019/201910021.html:embed:cite]
 
