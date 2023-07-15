@@ -1,5 +1,6 @@
 # Hatena Blog Entry - blog.motikan2010.com
 
+- [「SSTI（サーバサイド・テンプレート・インジェクション）経由のDoS攻撃」を試す](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482950064655.md)
 - [WordPressプラグイン「Ultimate Member」の Unauthenticated Privilege Escalation(CVE-2023-3460) の普及度調査](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482947601409.md)
 - [サブドメイン列挙ツール「subfinder」を試した](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482945815296.md)
 - [コンテナからの脱獄（Container Breakout） プロセス・インジェクション 編](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482939023965.md)
