@@ -55,6 +55,8 @@
 
 [https://wordpress.org/support/topic/register-role-ignored-and-user-became-an-admin/:title]
 
+[f:id:motikan2010:20230724165231p:plain:w600]
+
 ## 調査
 
 　日本国内でのこのプラグインの普及度や利用しているバージョン情報などを確認していきます。  
