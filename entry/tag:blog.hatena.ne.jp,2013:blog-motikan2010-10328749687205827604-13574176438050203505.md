@@ -318,7 +318,7 @@ SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further detail
 
 ### Active IAST と Passive IAST の違い
 
-　IASTは「Active IAST」と「Passive IAST」に分類されます。
+　IASTは「Active IAST （アクティブ IAST）」と「Passive IAST （パッシブ IAST）」に分類されます。
 
 　 2つの違いについては「開発者ファーストのアプリケーションセキュリティ完全ガイド」で説明されています。  
 <span><a href="https://resources.github.com/downloads/eBook-GHESAdvancedSecurity.pdf" target="_blank">開発者ファーストのアプリケーションセキュリティ完全ガイド</a></span>
@@ -348,8 +348,3 @@ SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further detail
 - <span><a href="https://buaq.net/go-94229.html" target="_blank">浅谈被动式IAST产品与技术实现-代码实现Demo篇</a></span> (パッシブIASTの製品・技術実装の紹介 - コード実装デモ)
   - IASTの重要部分が抽出されたアプリケーションを用いて、IASTの実装について説明されています。
   - このサイトで紹介されているリポジトリ<span><a href="https://github.com/iiiusky/java_iast_example" target="_blank">iiiusky/java_iast_example: JAVA IAST Example</a></span>
-
-
-
-
-
