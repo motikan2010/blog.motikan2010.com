@@ -4,7 +4,7 @@
 
 ## はじめに
 
-　WordPress プグラインを開発するにあたって、脆弱性を作らないためにはどのような点に気を付ける必要があるのかを紹介していきます。  
+　WordPress のプラグインを開発するにあたって、脆弱性を作らないためにはどのような点に気を付ける必要があるのかを紹介していきます。  
 
 ### 読者対象
 
@@ -34,6 +34,8 @@
 　WordPress の特徴が強い脆弱性の順で紹介していきます。
 
 ### ① PHPファイルへの直接アクセス
+
+#### 問題点
 
 　まず <span style="color: #ff0000">WordPress のドキュメントルート以下には誰でもアクセスすることが可能</span>です。
 
@@ -82,6 +84,8 @@ if ( !defined('ABSPATH') ) {
 
 ### ② サードパーティライブラリ
 
+#### 問題点
+
 　サードパーティから提供されているプログラムを用いて WordPress プラグインを開発した場合に発生する可能性がある脆弱性です。  
 
 #### 事例
@@ -127,13 +131,15 @@ if ( !defined('ABSPATH') ) {
 
 ### ③ 権限の検証に不備があるAPI
 
+#### 問題点
+
 　WordPress プラグインは `register_rest_route` 関数 を用いることで、容易に WordPress サイトに REST API を実装することが可能です。  
 
 　その API に<span style="color: #ff0000">権限の検証に不備</span>があったり、そもそも<span style="color: #ff0000">権限の検証をしていない</span>といったことが脆弱性になります。  
 
 　脆弱性が悪用されることでプラグインの機能が意図していない第三者によって利用される恐れがあります。（記事の投稿・ユーザアカウントの作成 など）
 
-#### APIが列挙できる REST API ルートエンドポイント
+##### APIが列挙できる REST API ルートエンドポイント
 
 　サイトの REST API の定義内容は、REST API ルートエンドポイント（`?rest_route=/`）にアクセスすることで確認できるようになっています。  
 
@@ -143,7 +149,7 @@ if ( !defined('ABSPATH') ) {
 
 <figure class="figure-image figure-image-fotolife" title="ルートエンドポイントにアクセスすると定義されているAPI一覧が表示される">[f:id:motikan2010:20201116204043p:plain:w500]<figcaption>ルートエンドポイントにアクセスすると定義されているAPI一覧が表示されます</figcaption></figure>
 
-#### 認可処理がないAPI
+##### 認可処理がないAPI
 
 　REST API のルートエンドポイントから API の定義情報からインストールされているプラグインが確認できることから、プラグインの REST API が攻撃の対象となってしまうことがあります。  
 
@@ -173,6 +179,8 @@ if ( !defined('ABSPATH') ) {
 　前述した「`current_user_can`」関数などの現行ユーザの権限を取得し、各APIで正常に処理を続行してよいかを検証します。
 
 ### ④ CSRF（Cross-site Request Forgery）
+
+#### 問題点
 
 　特定のWebアプリケーションフレームワークを用いて開発している場合は自動的にCSRFトークンの検証が行われますが、<span style="color: #ff0000">WordPress の場合は自動的にはCSRFの検証は行われません</span>。  
 
@@ -218,6 +226,8 @@ if ( isset( $_POST['some-nonce'] ) && ! wp_verify_nonce( $_POST['some-nonce'], '
 
 ### ⑤ XSS（Cross-site scripting）
 
+#### 問題点
+
 　ユーザの入力値を返すようなプラグインに発生する可能性がある脆弱性です。  
 
 　Webアプリケーションフレームワークを用いて開発した場合、ブラウザへの出力する際に自動的にエスケープ（サニタイジング）されるのがほとんどですが、<span style="color: #ff0000">WordPress プラグイン開発では自動的にエスケープされません</span>。  
@@ -240,9 +250,11 @@ if ( isset( $_POST['some-nonce'] ) && ! wp_verify_nonce( $_POST['some-nonce'], '
 
 ### ⑥ SQLインジェクション
 
+#### 問題点
+
 　読み込み、書き込み問わずデータベースにアクセスする必要があるプラグインに発生する可能性がある脆弱性です。  
 
-　<span style="color: #ff0000">WordPress にはデフォルトで O/Rマッパー が用意されていないので</span>、SQLインジェクションの脆弱性が発見されることがたびたびあります。  
+　<span style="color: #ff0000">WordPress にはデフォルトで O/Rマッパー が用意されていないので</span>、プラグインにSQLインジェクションの脆弱性が発見されることがたびたびあります。  
 
 #### 対策
 
