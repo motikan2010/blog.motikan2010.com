@@ -22,7 +22,7 @@
 
 - OpenLDAP 2.4.44
   - [osixia/openldap - Docker Hub](https://hub.docker.com/r/osixia/openldap/)
-- PHP 7.0 (php-ldap)
+- PHP 7.0 （php-ldap）
 
 <!-- more -->
 
@@ -141,7 +141,7 @@ $ docker run --link openldap-container -p 8888:80 ldap-client-container
 ### OpenLDAPの動作確認
 
 　`-w`オプションでパスワードを指定していますが、「admin」がパスワードとなっています。  
-末尾に記述されている「cn=admin」はフィルタであり、cn(Common Name)が「admin」のアカウントを表示しています。
+末尾に記述されている「`cn=admin`」はフィルタであり、cn(Common Name)が「admin」のアカウントを表示しています。
 
 <div class="md-code" style="width:100%">
 ```
@@ -223,7 +223,7 @@ result: 0 Success
 
 ### 脆弱性の確認
 
-1. 「*」をパスワードに入力  
+1. 「`*`」をパスワードに入力  
 <img src="https://i.imgur.com/KVHjgHF.png" width="400px">
 
 2. 認証が成功した(本来は失敗しなくてはいけない)  
@@ -278,7 +278,7 @@ $filter = '(&(cn=' . $userId . ')(userPassword=' . str_replace('*', '', $passwor
 　<span><a href="https://www.php.net/manual/ja/function.ldap-escape.php" target="_blank">ldap_escape関数</a></span>を利用することにより、どちらのパターンでも認証を突破することはできなくなりました。  
 　以下、ldap_escape関数を用いたコード。
 
-<div class="sm-code" style="width:100%">
+<div class="md-code" style="width:100%">
 ```
 $filter = '(&(cn=' . ldap_escape($userId) . ')(userPassword=' . ldap_escape($password) . '))';
 ```
