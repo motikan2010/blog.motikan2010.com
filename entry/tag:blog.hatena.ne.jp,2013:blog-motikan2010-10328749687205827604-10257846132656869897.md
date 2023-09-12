@@ -21,15 +21,16 @@
 - GUIアプリケーション
 - シナリオ型の設定可能
 
-### OWASP ZAP
+### ZAP
 
 | | |
 |-|-|
-|公式|OWASP Zed Attack Proxy Project - OWASP<br/>https://www.owasp.org/index.php/OWASP_Zed_Attack_Proxy_Project|
-|GitHub|https://github.com/zaproxy/zaproxy|
+| 公式 | ZAP<br/>https://www.zaproxy.org/ |
+| GitHub | https://github.com/zaproxy/zaproxy |
 
 - GUIアプリケーション
 - スパイダー型(簡易スキャン)
+- 2023年8月にOWASPから離れた。そのため「OWASP ZAP」ではなくなった。
 
 ### zap-cli
 
