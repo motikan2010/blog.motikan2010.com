@@ -50,7 +50,7 @@
 
 　では、2022年の人気脆弱性を紹介していきます。
 
-### 10位 - 753 pt 『macOS における権限昇格される脆弱性 (CVE-2022-46689)』
+### 10位 753 pt - macOS における権限昇格される脆弱性（CVE-2022-46689）
 
 [f:id:motikan2010:20230105001607j:plain]
 
@@ -69,7 +69,7 @@ PoC：<span><a href="https://github.com/ginsudev/WDBFontOverwrite" target="_blan
 - [https://worthdoingbadly.com/macdirtycow/:title]
 - [https://tools4hack.santalab.me/release-cve-2022-46689-macdirtycow-exploit-and-poc-trolllock-reborn-for-ios.html:title]
 
-### 9位 - 766 pt 『Cobalt Strike におけるクロスサイトスクリプティングの脆弱性 (CVE-2022-39197)』
+### 9位 766 pt - Cobalt Strike におけるクロスサイトスクリプティングの脆弱性（CVE-2022-39197）
 
 [f:id:motikan2010:20230105001129j:plain]
 
@@ -88,7 +88,7 @@ PoC: <span><a href="https://github.com/its-arun/CVE-2022-39197" target="_blank">
 
 - [https://securityintelligence.com/posts/analysis-rce-vulnerability-cobalt-strike/:title]
 
-### 8位 - 821 pt 『OpenSSL におけるバッファオーバーフローの脆弱性 (CVE-2022-3602)』
+### 8位 821 pt - OpenSSL におけるバッファオーバーフローの脆弱性（CVE-2022-3602）
 
 [f:id:motikan2010:20230105001115p:plain]
 
@@ -112,7 +112,7 @@ PoC: <span><a href="https://github.com/NCSC-NL/OpenSSL-2022" target="_blank">NCS
 
 [https://twitter.com/futurevuls/status/1587518546866601985:embed]
 
-### 7位 - 1,289 pt 『Spring Cloud Gateway における未認証の任意のコード実行の脆弱性 (CVE-2022-22947)』
+### 7位 1,289 pt - Spring Cloud Gateway における未認証の任意のコード実行の脆弱性（CVE-2022-22947）
 
 [f:id:motikan2010:20230105001021p:plain]
 
@@ -129,7 +129,7 @@ PoC: <span><a href="https://github.com/lucksec/Spring-Cloud-Gateway-CVE-2022-229
 
 - [https://jp.tenable.com/plugins/nessus/163631:title]
 
-### 6位 - 1,475 pt 『BIG-IP 製品の iControlREST コンポーネントにおける未認証の任意のコード実行の脆弱性 (CVE-2022-1388)』
+### 6位 1,475 pt - BIG-IP 製品の iControlREST コンポーネントにおける未認証の任意のコード実行の脆弱性（CVE-2022-1388）
 
 リポジトリ数: 61 / スター数: 865
 
@@ -145,7 +145,7 @@ PoC: <span><a href="https://github.com/horizon3ai/CVE-2022-1388" target="_blank"
 - [https://blogs.jpcert.or.jp/ja/2022/09/bigip-exploit.html:title]
 - [https://jp.tenable.com/plugins/nessus/160726:title]
 
-### 5位 - 1,479 pt 『VMware Workspace ONE Access、VMware Identity Manager における未認証の任意のコード実行の脆弱性 (CVE-2022-22954)』
+### 5位 1,479 pt - VMware Workspace ONE Access、VMware Identity Manager における未認証の任意のコード実行の脆弱性（CVE-2022-22954）
 
 リポジトリ数: 26 スター数: 1,219
 
@@ -160,7 +160,7 @@ PoC: <span><a href="https://github.com/Schira4396/VcenterKiller" target="_blank"
 
 - [https://unit42.paloaltonetworks.jp/cve-2022-22954-vmware-vulnerabilities/:title]
 
-### 4位 - 1,683 pt 『マイクロソフトサポート診断ツールに任意のコード実行の脆弱性 (CVE-2022-30190)』
+### 4位 1,683 pt - マイクロソフトサポート診断ツールに任意のコード実行の脆弱性（CVE-2022-30190）
 
 [f:id:motikan2010:20230105001101j:plain]
 
@@ -178,7 +178,7 @@ PoC: <span><a href="https://github.com/komomon/CVE-2022-30190-follina-Office-MSD
 - [https://msrc-blog.microsoft.com/2022/05/30/guidance-for-cve-2022-30190-microsoft-support-diagnostic-tool-vulnerability-jp/:title]
 - [https://jpn.nec.com/cybersecurity/blog/220620/index.html:title]
 
-### 3位 - 2,131 pt 『Confluence Server、Data Center における未認証の任意のコード実行の脆弱性 (CVE-2022-26134)』
+### 3位 2,131 pt - Confluence Server、Data Center における未認証の任意のコード実行の脆弱性（CVE-2022-26134）
 
 [f:id:motikan2010:20230105001038p:plain]
 
@@ -196,7 +196,7 @@ PoC: <span><a href="https://github.com/W01fh4cker/Serein" target="_blank">W01fh4
 - [https://ja.confluence.atlassian.com/doc/confluence-security-advisory-2022-06-02-1130377146.html:title]
 - [https://www.jpcert.or.jp/at/2022/at220015.html:title]
 
-### 2位 - 2,176 pt 『Spring Framework における不適切なデータバインディング処理による任意コード実行の脆弱性 (CVE-2022-22965)』
+### 2位 2,176 pt - Spring Framework における不適切なデータバインディング処理による任意コード実行の脆弱性（CVE-2022-22965）
 
 [f:id:motikan2010:20230105001021p:plain]
 
@@ -215,7 +215,7 @@ PoC: <span><a href="https://github.com/BobTheShoplifter/Spring4Shell-POC" target
 
 - [https://jvndb.jvn.jp/ja/contents/2022/JVNDB-2022-001498.html:title]
 
-### 1位 - 15,134 pt 『Linux Kernel における権限昇格される脆弱性 (CVE-2022-0847 通称 Dirty Pipe)』
+### 1位 2,924 pt - Linux Kernel における権限昇格される脆弱性（CVE-2022-0847 / Dirty Pipe）
 
 [f:id:motikan2010:20230105001720p:plain]
 
