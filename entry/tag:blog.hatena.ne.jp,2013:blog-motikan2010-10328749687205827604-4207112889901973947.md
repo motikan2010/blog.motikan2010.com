@@ -4,9 +4,6 @@
 
 <div style="text-align:center;">[f:id:motikan2010:20220723232117p:plain:w500]</div>
 
-### 今回作ったサイトはこちらから
-
-[https://hacker-trends.motikan2010.com/:title]
 
 ### 簡単なサイト説明
 

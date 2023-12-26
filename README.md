@@ -1,5 +1,6 @@
 # Hatena Blog Entry - blog.motikan2010.com
 
+- [2023年 人気脆弱性 TOP 10 in GitHub](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-6801883189069192593.md)
 - [【入門】無料で始めるCSPM（Azure 編）](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482958240406.md)
 - [「SSTI（サーバサイド・テンプレート・インジェクション）経由のDoS攻撃」を試す](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482950064655.md)
 - [WordPressプラグイン「Ultimate Member」の Unauthenticated Privilege Escalation(CVE-2023-3460) の普及度調査](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-820878482947601409.md)
