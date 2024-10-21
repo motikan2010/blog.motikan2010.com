@@ -4,10 +4,10 @@
 
 ## はじめに
 
-　2021年9月1日、`火线安全平台`社から「DongTai(ドンタイ) IAST ("洞态IAST"の表記もある)」がOSSとして公開されました。  
+　2021年9月1日、`火线安全平台`社から OSS である「**DongTai(ドンタイ) IAST** ("洞态IAST"の表記もある)」が公開されました。  
 (IAST = Interactive Application Security Testing)
 
-<figure class="figure-image figure-image-fotolife" title="製品ロゴ">[f:id:motikan2010:20220107192818p:plain]<figcaption>製品ロゴ</figcaption></figure>
+<figure class="figure-image figure-image-fotolife" title="製品ロゴ">[f:id:motikan2010:20220107192818p:plain:w200]<figcaption>製品ロゴ</figcaption></figure>
 
 　「グローバルプロフェッショナルIAST分野では初のオープンソースプロジェクト」と記載されていますが、Passive IASTでは世界初のOSSだと思います。  
 
