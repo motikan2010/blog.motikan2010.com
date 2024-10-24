@@ -372,4 +372,4 @@ Webダッシュボード（`http://<検査環境のIPアドレス>:11666/`）に
 （サポートなくともOSSなので修正できるところは良い）  
 <span><a href="https://github.com/prowler-cloud/prowler/pull/5399" target="_blank">fix(iam): update AWS Support policy by sergargar · Pull Request #5399 · prowler-cloud/prowler</a></span>
 
-
+[blog:g:12921228815726579926:banner]
