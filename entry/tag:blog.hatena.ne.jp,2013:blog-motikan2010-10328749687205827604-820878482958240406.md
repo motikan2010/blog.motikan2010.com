@@ -47,7 +47,7 @@ CSPM（Cloud Security Posture Management）の簡単な説明は、この記事�
 
 ### クライアントシークレットの作成
 
-8. 「**Certificates & secrets**」をクリックする。
+8. 「Manage > **Certificates & secrets**」をクリックする。
 9. 「Client secrets」の下にある「**New client secret**」をクリックする。
 10. "Description"（例：Cloudsploit-2019）を入力し、"Expiers"に「**Recommended: 180 days (6 months)**」を選択します。  
 [f:id:motikan2010:20230814124355p:plain:w700]
