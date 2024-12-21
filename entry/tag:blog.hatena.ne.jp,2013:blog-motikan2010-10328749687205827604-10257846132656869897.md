@@ -274,6 +274,15 @@ https://prtimes.jp/main/html/rd/p/000000010.000060051.html
 - 【2021.12.01】 スリーシェイク、自動脆弱性診断ツール「Securify」の無料提供を開始  
 https://prtimes.jp/main/html/rd/p/000000045.000024873.html
 
+### Website Scouter（さくらインターネット）
+
+| | |
+|-|-|
+| 公式 | Website Scouter | さくらのサイバーセキュリティ<br/>https://cybersec.sakura.ad.jp/product/wss/ |
+
+- 【2024.08.22】さくらインターネット、Web脆弱性診断サービス「WebSite Scouter」を提供開始 | さくらインターネット  
+https://www.sakura.ad.jp/corporate/information/newsreleases/2024/08/22/1968216719/
+
 ### secuas（セキュアズ）
 
 | | |
@@ -283,7 +292,7 @@ https://prtimes.jp/main/html/rd/p/000000045.000024873.html
 - 【2022.03.29】多くの企業が情報漏洩対策に取り組めるよう、「誰でも」「わかりやすく」「安価」な診断ツール「secuas(セキュアズ)」がリリース  
 https://prtimes.jp/main/html/rd/p/000000001.000092747.html
 
-### Walti (※提供終了)
+### Walti （※提供終了）
 
 <b>※ 2021年7月20日 サービス終了</b>
 
