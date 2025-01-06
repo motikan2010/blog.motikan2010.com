@@ -1,4 +1,4 @@
-<div style="text-align:center;">[f:id:motikan2010:20241229204305p:plain:w500]</div>
+<div style="text-align:center;">[f:id:motikan2010:20250106215806p:plain:w500]</div>
 
 <div class="contents-box"><p>[:contents]</p></div>
 
