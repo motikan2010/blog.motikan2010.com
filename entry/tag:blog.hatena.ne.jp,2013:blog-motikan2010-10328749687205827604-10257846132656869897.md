@@ -292,6 +292,12 @@ https://www.sakura.ad.jp/corporate/information/newsreleases/2024/08/22/196821671
 - 【2022.03.29】多くの企業が情報漏洩対策に取り組めるよう、「誰でも」「わかりやすく」「安価」な診断ツール「secuas(セキュアズ)」がリリース  
 https://prtimes.jp/main/html/rd/p/000000001.000092747.html
 
+### SecuAlive
+
+| | |
+|-|-|
+| 公式 | SecuAlive - 株式会社トレードワークス<br/>https://www.tworks.co.jp/security/secualive/ |
+
 ### Walti （※提供終了）
 
 <b>※ 2021年7月20日 サービス終了</b>
