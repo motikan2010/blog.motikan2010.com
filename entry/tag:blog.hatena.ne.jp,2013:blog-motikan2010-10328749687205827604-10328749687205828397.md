@@ -1,7 +1,7 @@
 　関数inputで入力された値は文字列型として扱われる。  
 「16進数 → 10進数 → バイナリデータ」の順で変換しています。
 
-<div class="sm-code">
+<div class="md-code">
 ```python
 import struct
 
@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
 ここでは「hex_sample.py」で保存
 
-<div class="sm-code">
+<div class="md-code">
 ```bash
 # python hex_sample.py
 68 65 6c 6c 6f 20 77 6f 72 6c 64 21 21
