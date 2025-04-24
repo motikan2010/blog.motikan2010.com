@@ -48,7 +48,9 @@ Niwaka を動作させるには２つのアカウントを作成します。
 
 - **OPENAI_API_KEY** : OpenAI API キー
 - **REPO_NAME** : 検査対象リポジトリ（リポジトリは手動で clone する必要があります）
-- **GITHUB_PERSONAL_ACCESS_TOKEN** : Github の Personal access tokens(アクセストークン)
+- **GITHUB_PERSONAL_ACCESS_TOKEN** : Github の Personal access tokens（アクセストークン）
+  - アクセストークンのパーミッションはこんな感じ  
+[f:id:motikan2010:20250424190320p:plain:w400]
 
 ### 3. ソースコードの配置
 
