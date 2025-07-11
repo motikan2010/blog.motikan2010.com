@@ -1,5 +1,7 @@
 <div style="text-align:center;">[f:id:motikan2010:20250703231551p:plain:w600]</div>
 
+<div style="text-align:center;">[blog:g:12921228815726579926:banner]</div>
+
 <div class="contents-box"><p>[:contents]</p></div>
 
 ## はじめに
