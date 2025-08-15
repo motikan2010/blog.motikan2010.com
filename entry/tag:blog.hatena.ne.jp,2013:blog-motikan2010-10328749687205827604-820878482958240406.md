@@ -34,7 +34,7 @@ CSPM（Cloud Security Posture Management）の簡単な説明は、この記事�
 
 ### アプリケーションの登録
 
-1. Azure ポータルにログインし、「**Azure Active Director**」サービスに移動します。
+1. Azure ポータルにログインし、「**Microsoft Entra ID**」サービスに移動します。
 2. 「**App registrations**」を選択し、「**New registration**」をクリックする。  
 [f:id:motikan2010:20230814124034p:plain:w700]
 3. 「**Name**」フィールドに「CloudSploit」などの分かりやすい名前を入力します。
