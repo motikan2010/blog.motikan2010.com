@@ -1,4 +1,4 @@
-<div style="text-align:center;">[f:id:motikan2010:20251217011735p:plain:w600]</div>
+<div style="text-align:center;">[f:id:motikan2010:20251217223201g:plain:w600]</div>
 
 <div class="contents-box"><p>[:contents]</p></div>
 
@@ -6,20 +6,20 @@
 
 　AWS から「AWS Security Agent」というセキュリティサービスが発表され、「**Code review**」という機能のSAST(静的アプリケーションセキュリティテスト)が提供されましたので、脆弱なソースコードをセキュリティ検査してみました。  (**※プレビュー版**)
 
+▼ AWS Security Agent についてはコチラ  
 [https://aws.amazon.com/jp/blogs/aws/new-aws-security-agent-secures-applications-proactively-from-design-to-deployment-preview/:embed:cite]
 
 　Security Agent には主に下記３つの機能がありますが、本記事では Code review を検証してみます。 
 
-- Design review
-- **Code review**
-- Penetration testing
+- Design review （設計ドキュメント有りのSAST）
+- **Code review** （SAST）
+- Penetration testing （DAST）
 
-<div style="text-align:center;">[f:id:motikan2010:20251216224312p:plain:w600]</div>
+<div style="text-align:center;">[f:id:motikan2010:20251217213248p:plain:w700]</div>
 
 ## 検証
 
-
-　SASTを検証するためには脆弱性を含んだソースコードのプルリクエストが必要です。そのために GitHub リポジトリで検証を実施しています。    
+　SASTを検証するためには脆弱性を含んだソースコードのプルリクエストが必要です。そのために大量の脆弱性を含んだ GitHub リポジトリで検証を実施しています。    
 ▼ リポジトリはコチラ
 [https://github.com/motikan2010/Test-AWS_Security_Agent-Code_Review:title]  
 
@@ -36,6 +36,7 @@
 　そのプルリクエストに対して７つのコメントしか追加されていないため、**ソースコードの全てに対してセキュリティ検査が行われるわけではない**ことが確認できました。    
 <div style="text-align:center;">[f:id:motikan2010:20251216230002p:plain:w600]</div>
 
+ ➡︎ "７つ"の脆弱性が検出された後は検査が行われないような動作でした。（以降の各脆弱性でも同様に最大７つでした）  
 
 ### 各脆弱性のSAST
 
@@ -85,8 +86,9 @@
 ## まとめ
 
 - 検出される脆弱性を存在しますが、見逃される脆弱性をいくつかあるようでした
-- コメントの出力に関しても簡易な不具合が多少見られました
-<div style="text-align:center;">[f:id:motikan2010:20251217005834p:plain:w400]</div>
+  - LLM に頼りすぎているような印象で、既存の SAST の検出ロジックを活用できていない印象。
 - まだ プレビュー版 なので今後のアップデートに期待です
   - 本検証段階では無償で利用できるため LLM に制限がかかっているかもしれないですね
-
+- コメントの出力に関しても再現が容易な不具合が多少見られました
+<div style="text-align:center;">[f:id:motikan2010:20251217005834p:plain:w400]</div>
+- GA版(一般提供)に期待です！！
