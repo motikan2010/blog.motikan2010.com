@@ -1,5 +1,6 @@
 # Hatena Blog Entry - blog.motikan2010.com
 
+- [Amazon GuardDuty で flightsim による擬似攻撃を検出して LLM で追加実装](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-17179246901351149692.md)
 - [2025年 人気脆弱性 TOP 10 in GitHub](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-17179246901340464134.md)
 - [AWS Security Agent の Code review (SAST) を使う](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-17179246901333457982.md)
 - [2025年 上半期 人気脆弱性 TOP 10 in GitHub](./entry/tag:blog.hatena.ne.jp,2013:blog-motikan2010-10328749687205827604-6802418398498782936.md)
