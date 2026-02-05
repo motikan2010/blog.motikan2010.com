@@ -4,9 +4,11 @@
 
 ## はじめに
 
-　擬似攻撃を行う「**flightsim ( Network Flight Simulator )**」を AWS のセキュリティサービスである「**Amazon GuardDuty**」の監視対象である EC2 インスタンスで動作させて、どのような検知ログが検出されるのかを確認してみます。  
+　本記事では、動作マシン上で擬似攻撃を行うツールである「**flightsim ( Network Flight Simulator )**」を AWS のセキュリティサービスである「**Amazon GuardDuty**」の監視対象である EC2 インスタンスで動作させてみます。そして GuardDuty でどのようが脅威が検出されるのかを確認してみます。  
 
-　そして、ネットワーク監視だけでなくランタイム監視ができるように実装するために LLM を利用して、「flightsim」に追加実装を行ってみます。  
+<span><a href="https://github.com/alphasoc/flightsim" target="_blank">**flightsim** : A utility to safely generate malicious network traffic patterns and evaluate controls.</a></span>
+
+　そして最後にネットワーク監視だけでなくランタイム監視ができるようにするため LLM (Claude Code) を利用して、「flightsim」に追加実装を行ってみます。（※ 「Claude Code」は有償のサービスです。）  
 
 ### Amazon GuardDuty の説明
 
@@ -21,7 +23,6 @@ Amazon GuardDutyは、AWSアカウントとワークロードを保護するた�
 ### flightsim の説明
 
 　「flightsim」の説明は以下の通りです。  
-<span><a href="https://github.com/alphasoc/flightsim" target="_blank">alphasoc/flightsim: A utility to safely generate malicious network traffic patterns and evaluate controls.</a></span>
 
 > 「**flightsim ( Network Flight Simulator )**」は、悪意のあるネットワークトラフィックを生成し、セキュリティチームがセキュリティ制御やネットワーク監視機能を評価する際に役立つ軽量ユーティリティです。  
 このツールは、DNSトンネリング、DGA（動的生成ドメイン）トラフィック、既知のアクティブなC2（コマンド＆コントロール）サーバーへのリクエスト、その他の不審なトラフィックパターンなどをシミュレートするテストを実行します。
@@ -37,15 +38,34 @@ Amazon GuardDutyは、AWSアカウントとワークロードを保護するた�
 
 　Amazon GuardDuty 監視内のインスタンス(Linux)内で **flightsim** のバイナリをダウンロードして、　「`./flightsim run`」を実行します。  
 
-　そして擬似攻撃が完了するまでしばらく待ちます・・・。  
+　擬似攻撃が完了するまでしばらく待ちます・・・。  
 
-　flightsim を GuardDuty の監視対象で実行して検出ログは以下のようになり、期待通り不審なネットワーク通信が検出されていました。  
+　 GuardDuty の検出ログに以下の検出が追加され、期待通り不審なネットワーク通信が検出されました。実ログではより詳細な情報が出力されています。    
 
 [f:id:motikan2010:20260204205917p:plain]  
 
+▼ 検出ログを AWS CLI を使って取得  
+<div class="md-code" style="width:90%">
+```sh
+# 1. DetectorId 一覧の取得
+aws guardduty list-detectors
+
+# 2. FindingId 一覧の取得
+aws guardduty list-findings --detector-id <DetectorId>
+
+# 3. Finding (検知詳細) の取得
+aws guardduty get-findings --detector-id <DetectorId> --finding-ids <FindingId>
+```
+</div>
+
 ## LLM(Claude Code) でモジュール拡張
 
-　ネットワーク関連の擬似攻撃では、物足りないためランタイム関連の擬似攻撃を行う追加実装を行います。  
+　ネットワーク関連の擬似攻撃では、物足りないため**ランタイム関連の擬似攻撃を行う追加実装**を行います。  
+
+　「`DefenseEvasion:Runtime/ProcessInjection.Proc`」で検知される疑似攻撃を行うモジュールを追加します。  
+[f:id:motikan2010:20260205154919p:plain:w700]  
+
+　せっかくなので LLM (Claude Code) を利用して実装を行うことにします。  
 
 ### 準備
 
@@ -80,13 +100,13 @@ guarddutyの検出項目詳細は「/tmp/guardduty-runbooks/runbooks/*.md」に�
 
 　（しばらく待つ・・・）そして以下の流れで LLM が実装を行なわれました。  
 
-早速、GuardDutyの検出詳細である「/tmp/guardduty-runbooks/runbooks/*.md」を確認しているようです。
+🤖 早速、GuardDutyの検出詳細である「/tmp/guardduty-runbooks/runbooks/*.md」を確認しているようです。
 [f:id:motikan2010:20260204205831p:plain]
 
-検出詳細が記載されているファイルを発見して、内容を確認しているようです。  
+🤖 検出詳細が記載されているファイルを発見して、内容を確認しているようです。  
 [f:id:motikan2010:20260204205844p:plain]
 
-それらの情報をもとに実装が完了したらしいです。  
+🤖 それらの情報をもとに実装が完了したらしいです。  
 [f:id:motikan2010:20260204205858p:plain]
 
 ### コードの修正後
@@ -281,6 +301,7 @@ var allModules = []Module{
 ## まとめ
 
 - Amazon GuardDuty は有効化した方がよい
-  - 本記事では"GuardDuty Runtime Monitoring"も有効化しているが導入が容易
+  - 本記事では "GuardDuty Runtime Monitoring" も有効化していますが導入は容易
 - **LLM は便利**
   - LLM に"MITRE ATT&CK"などの情報を与えれば、もっと精度の高いコードを生成してくれる予感
+  - 10分ほどで追加実装ができました
