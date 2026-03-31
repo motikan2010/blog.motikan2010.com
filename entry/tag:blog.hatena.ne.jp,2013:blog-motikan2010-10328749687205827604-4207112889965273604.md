@@ -1,6 +1,6 @@
 <span style="color: #ff0000">**※ネタ記事です**</span>
 
-<div style="text-align:center;">[f:id:motikan2010:20230222093517p:plain:w600]</div>
+<div style="text-align:center;">[f:id:motikan2010:20230222093517p:plain:w700]</div>
 
 <div class="contents-box"><p>[:contents]</p></div>
 
