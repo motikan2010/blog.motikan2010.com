@@ -4,11 +4,11 @@
 
 ## はじめに
 
-　本記事では、動作マシン上で擬似攻撃を行うツールである「**flightsim ( Network Flight Simulator )**」を AWS のセキュリティサービスである「**Amazon GuardDuty**」の監視対象である EC2 インスタンスで動作させてみます。そして GuardDuty でどのようが脅威が検出されるのかを確認してみます。  
+　本記事では、動作マシン上で<span style="color: #ff0000">擬似攻撃を行うツールである「**flightsim ( Network Flight Simulator )**」</span>を AWS のセキュリティサービスである<span style="color: #ff0000">「**Amazon GuardDuty**」の監視対象である EC2 インスタンスで動作させます。</span>その結果、 GuardDuty でどのようが脅威が検出されるのかを確認してみます。  
 
-<span><a href="https://github.com/alphasoc/flightsim" target="_blank">**flightsim** : A utility to safely generate malicious network traffic patterns and evaluate controls.</a></span>
+　そして最後にネットワーク監視だけでなく<span style="color: #ff0000">ランタイム監視ができるようにするため LLM (Claude Code) を利用して、「flightsim」に追加実装</span>を行ってみます。（※ 「Claude Code」は有償のサービスです。）  
 
-　そして最後にネットワーク監視だけでなくランタイム監視ができるようにするため LLM (Claude Code) を利用して、「flightsim」に追加実装を行ってみます。（※ 「Claude Code」は有償のサービスです。）  
+[https://github.com/alphasoc/flightsim:embed:cite]  
 
 ### Amazon GuardDuty の説明
 
